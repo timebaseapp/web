@@ -464,6 +464,14 @@ function openAboutCard() {
   aboutSheet.showModal();
 }
 
+// Click outside any open dialog → close it. (HTML <dialog> doesn't do this
+// natively; the click on the backdrop targets the dialog element itself.)
+for (const dlg of document.querySelectorAll('dialog')) {
+  dlg.addEventListener('click', e => {
+    if (e.target === dlg) dlg.close();
+  });
+}
+
 aboutSetting24h.addEventListener('change', () => {
   store.settings.h24 = aboutSetting24h.value;
   saveState();
