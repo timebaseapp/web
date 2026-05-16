@@ -357,20 +357,13 @@ function formatDelta(minutes) {
 
 let dragStart = null;
 let dragHappened = false;
-let velocity = 0;
-let lastDragTime = 0;
-let lastDragX = 0, lastDragY = 0;
-let inertiaRAF = null;
 let initialScrub = 0;
 
 function onPointerDown(e) {
   if (e.target.closest('button, dialog, #menu-popover, #hint, .pill, #menu-trigger')) return;
-  if (inertiaRAF) { cancelAnimationFrame(inertiaRAF); inertiaRAF = null; }
-  dragStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+  dragStart = { x: e.clientX, y: e.clientY };
   initialScrub = store.scrubOffsetMin;
   dragHappened = false;
-  velocity = 0;
-  lastDragX = e.clientX; lastDragY = e.clientY; lastDragTime = performance.now();
   clockEl.setPointerCapture?.(e.pointerId);
 }
 function onPointerMove(e) {
@@ -380,38 +373,15 @@ function onPointerMove(e) {
   const dist = Math.hypot(dx, dy);
   if (!dragHappened && dist > 4) dragHappened = true;
   if (!dragHappened) return;
-  const delta = (dx + (-dy)) * PX_PER_MIN;
-  store.scrubOffsetMin = initialScrub + delta;
-
-  const now = performance.now();
-  const dt = now - lastDragTime;
-  if (dt > 0) {
-    const instDx = (e.clientX - lastDragX) + (lastDragY - e.clientY);
-    velocity = 0.7 * velocity + 0.3 * (instDx * PX_PER_MIN / dt); // min/ms
-  }
-  lastDragX = e.clientX; lastDragY = e.clientY; lastDragTime = now;
-
+  store.scrubOffsetMin = initialScrub + (dx + (-dy)) * PX_PER_MIN;
   renderClock();
 }
-function onPointerUp(e) {
-  if (!dragStart) return;
+function onPointerUp() {
+  // Direct manipulation only — no inertia, no spring.
   dragStart = null;
-  if (!dragHappened) return;
-  // Inertia.
-  const decay = 0.96;
-  let v = velocity * 16; // approx per-frame at 60fps
-  function step() {
-    if (Math.abs(v) < 0.01) { inertiaRAF = null; return; }
-    store.scrubOffsetMin += v;
-    v *= decay;
-    renderClock();
-    inertiaRAF = requestAnimationFrame(step);
-  }
-  if (Math.abs(v) > 0.05) inertiaRAF = requestAnimationFrame(step);
 }
 
 function snapToNow() {
-  if (inertiaRAF) cancelAnimationFrame(inertiaRAF);
   const start = store.scrubOffsetMin;
   const t0 = performance.now();
   const duration = 320;
@@ -433,9 +403,46 @@ clockEl.addEventListener('pointercancel', onPointerUp);
 clockEl.addEventListener('dblclick', snapToNow);
 scrubPill.addEventListener('click', snapToNow);
 
-// Keyboard shortcut.
+// Mouse wheel / trackpad scroll → scrub. deltaX positive (scroll right) and
+// deltaY negative (scroll up) advance time, mirroring the drag convention.
+clockEl.addEventListener('wheel', e => {
+  // Only intercept when the target isn't inside a dialog/menu.
+  if (e.target.closest('dialog, #menu-popover, #hint')) return;
+  e.preventDefault();
+  // deltaMode: 0 = pixel, 1 = line, 2 = page. Normalize.
+  const scale = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 800 : 1);
+  const projected = (e.deltaX * scale) + (-e.deltaY * scale);
+  // Trackpad pixel deltas are tiny — scale up so 100px scroll feels like
+  // a meaningful amount of time. PX_PER_MIN = 0.5 already, so half a pixel
+  // per minute. Multiply by 2 to feel responsive.
+  store.scrubOffsetMin += projected * PX_PER_MIN * 2;
+  renderClock();
+}, { passive: false });
+
+// Keyboard shortcuts.
+//   ← / ↓     : rewind 15 min (Shift: 1h, Cmd/Ctrl: 1d)
+//   → / ↑     : advance 15 min (Shift: 1h, Cmd/Ctrl: 1d)
+//   Esc / Space: snap to now
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && store.scrubOffsetMin !== 0) snapToNow();
+  // Don't intercept when an input/textarea is focused.
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+
+  if ((e.key === 'Escape' || e.key === ' ') && store.scrubOffsetMin !== 0) {
+    e.preventDefault();
+    snapToNow();
+    return;
+  }
+  let direction = 0;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') direction = 1;
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') direction = -1;
+  if (!direction) return;
+  e.preventDefault();
+  let minutes = 15;
+  if (e.metaKey || e.ctrlKey) minutes = 24 * 60;     // 1 day
+  else if (e.shiftKey) minutes = 60;                  // 1 hour
+  store.scrubOffsetMin += direction * minutes;
+  renderClock();
 });
 
 /* ───────────── menu + sheets ───────────── */
