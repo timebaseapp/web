@@ -301,7 +301,24 @@ dialog::backdrop {
   flex-direction: column;
   gap: 16px;
   border: 0.5px solid var(--rule);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
 }
+
+.sheet-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/grain.png");
+  background-size: 256px 256px;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 0;
+}
+.sheet-inner > * { position: relative; z-index: 1; }
 
 .sheet-inner header {
   display: flex;
@@ -565,7 +582,23 @@ ul.settings li.about a { color: var(--fg-muted); }
   text-align: center;
   position: relative;
   font-family: "Departure Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  isolation: isolate;
+  overflow: hidden;
 }
+
+.about-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/grain.png");
+  background-size: 256px 256px;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 0;
+}
+.about-card > * { position: relative; z-index: 1; }
 
 .about-wordmark {
   font-family: "Crimson Text", ui-serif, Georgia, serif;
