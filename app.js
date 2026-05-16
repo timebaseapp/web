@@ -445,22 +445,33 @@ document.addEventListener('keydown', e => {
   renderClock();
 });
 
-/* ───────────── menu + sheets ───────────── */
+/* ───────────── dock pills + About card ───────────── */
 
-const menuTrigger = document.getElementById('menu-trigger');
-const menuPopover = document.getElementById('menu-popover');
+const addPill = document.getElementById('add-pill');
+const aboutPill = document.getElementById('about-pill');
+const aboutSheet = document.getElementById('about-sheet');
+const aboutSetting24h = document.getElementById('about-setting-24h');
+const aboutSettingAppearance = document.getElementById('about-setting-appearance');
 
-menuTrigger.addEventListener('click', e => {
-  e.stopPropagation();
-  menuPopover.hidden = !menuPopover.hidden;
+addPill.addEventListener('click', () => openAddSheet());
+aboutPill.addEventListener('click', () => openAboutCard());
+
+function openAboutCard() {
+  aboutSetting24h.value = store.settings.h24;
+  aboutSettingAppearance.value = store.settings.appearance;
+  aboutSheet.showModal();
+}
+
+aboutSetting24h.addEventListener('change', () => {
+  store.settings.h24 = aboutSetting24h.value;
+  saveState();
+  renderClock();
 });
-document.addEventListener('click', e => {
-  if (!menuPopover.contains(e.target) && e.target !== menuTrigger) menuPopover.hidden = true;
-});
-menuPopover.addEventListener('click', e => {
-  const action = e.target.dataset?.action;
-  if (action === 'add') { menuPopover.hidden = true; openAddSheet(); }
-  if (action === 'settings') { menuPopover.hidden = true; openSettings(); }
+aboutSettingAppearance.addEventListener('change', () => {
+  store.settings.appearance = aboutSettingAppearance.value;
+  saveState();
+  applyTheme();
+  renderClock();
 });
 
 // Add city sheet
@@ -595,31 +606,7 @@ document.getElementById('remove-btn').addEventListener('click', () => {
   detailSheet.close();
 });
 
-// Settings sheet
-const settingsSheet = document.getElementById('settings-sheet');
-const setting24h = document.getElementById('setting-24h');
-const settingAppearance = document.getElementById('setting-appearance');
-
-function openSettings() {
-  setting24h.value = store.settings.h24;
-  settingAppearance.value = store.settings.appearance;
-  settingsSheet.showModal();
-}
-setting24h.addEventListener('change', () => {
-  store.settings.h24 = setting24h.value;
-  saveState();
-  renderClock();
-});
-settingAppearance.addEventListener('change', () => {
-  store.settings.appearance = settingAppearance.value;
-  saveState();
-  applyTheme();
-  renderClock();
-});
-document.getElementById('add-city-from-settings').addEventListener('click', () => {
-  settingsSheet.close();
-  openAddSheet();
-});
+// (Settings live inside the About card — see openAboutCard above.)
 
 // First-run hint
 const hint = document.getElementById('hint');

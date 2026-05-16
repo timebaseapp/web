@@ -1,6 +1,15 @@
 /* Timebase — web styles
-   One family (SF stack), two weights, ruthless hierarchy.
+   Main UI: SF stack. About card: Fraunces (wordmark) + Departure Mono (body).
    Sizes: 13 / 17 / 22 / 28 / 48. No other sizes. */
+
+@font-face {
+  font-family: "Departure Mono";
+  src: url("/fonts/DepartureMono-Regular.woff2") format("woff2"),
+       url("/fonts/DepartureMono-Regular.woff")  format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -149,12 +158,21 @@ body {
 
 body.scrubbed .row { filter: saturate(0.65); }
 
-/* Floating pills */
-.pill {
+/* Bottom dock of pills */
+#dock {
   position: fixed;
   left: 50%;
   bottom: max(24px, env(safe-area-inset-bottom));
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+  pointer-events: none;
+}
+#dock > * { pointer-events: auto; }
+
+.pill {
   background: var(--bg);
   color: var(--fg);
   border: 0.5px solid var(--rule);
@@ -163,72 +181,33 @@ body.scrubbed .row { filter: saturate(0.65); }
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  z-index: 10;
   cursor: pointer;
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   font-variant-numeric: tabular-nums;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pill[hidden] { display: none; }
 
+.icon-pill {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--fg);
+}
+
+.icon-pill .info-glyph {
+  font-family: "Times New Roman", Times, serif;
+  font-style: italic;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+
 #scrub-pill { font-weight: 800; }
-
-/* Menu trigger — top right dot */
-#menu-trigger {
-  position: fixed;
-  top: max(20px, env(safe-area-inset-top));
-  right: max(20px, env(safe-area-inset-right));
-  width: 40px;
-  height: 40px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  z-index: 11;
-  display: grid;
-  place-items: center;
-  color: var(--fg);
-  mix-blend-mode: difference;
-}
-
-#menu-trigger span {
-  width: 4px;
-  height: 4px;
-  background: currentColor;
-  border-radius: 50%;
-  box-shadow: 0 -7px 0 currentColor, 0 7px 0 currentColor;
-}
-
-#menu-popover {
-  position: fixed;
-  top: max(70px, calc(env(safe-area-inset-top) + 50px));
-  right: max(20px, env(safe-area-inset-right));
-  background: var(--sheet-bg);
-  border: 0.5px solid var(--rule);
-  border-radius: 14px;
-  padding: 6px;
-  z-index: 12;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-  display: flex;
-  flex-direction: column;
-  min-width: 180px;
-}
-
-#menu-popover[hidden] { display: none; }
-
-#menu-popover button {
-  background: transparent;
-  border: none;
-  padding: 10px 14px;
-  font-size: 17px;
-  text-align: left;
-  cursor: pointer;
-  color: var(--fg);
-  border-radius: 8px;
-}
-
-#menu-popover button:hover {
-  background: rgba(128,128,128,0.12);
-}
 
 /* Sheets */
 dialog {
@@ -502,9 +481,163 @@ ul.settings li.about a { color: var(--fg-muted); }
   font-family: inherit;
 }
 
+/* About card — Macintosh-style */
+#about-sheet {
+  max-width: 380px;
+}
+#about-sheet::backdrop {
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(6px);
+}
+
+.about-card {
+  background: var(--sheet-bg);
+  border-radius: 14px;
+  border: 0.5px solid var(--rule);
+  padding: 28px 26px 22px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.18), 0 2px 4px rgba(0,0,0,0.06);
+  text-align: center;
+  position: relative;
+  font-family: "Departure Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.about-wordmark {
+  font-family: "Fraunces", ui-serif, Georgia, serif;
+  font-weight: 900;
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+  margin: 4px 0 4px;
+  color: var(--fg);
+}
+
+.about-version {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-bottom: 22px;
+}
+
+.about-tagline {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--fg);
+  margin: 0 auto 10px;
+  max-width: 30ch;
+}
+
+.about-subline {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  margin: 0 auto 22px;
+  max-width: 36ch;
+}
+
+.about-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  background: rgba(128,128,128,0.06);
+  border: 0.5px solid var(--rule);
+  border-radius: 10px;
+}
+
+.about-settings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.about-settings select {
+  background: transparent;
+  border: 0.5px solid var(--rule);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--fg);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.about-divider {
+  height: 1px;
+  background: var(--rule);
+  margin: 0 -8px 14px;
+}
+
+.about-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.about-credit {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+.about-credit a {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 0.5px solid currentColor;
+}
+
+.about-links {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.about-links a {
+  color: var(--fg-muted);
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.about-links a:hover {
+  color: var(--fg);
+  background: rgba(128,128,128,0.10);
+}
+
+.about-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: 0.5px solid var(--rule);
+  color: var(--fg-muted);
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.about-close:hover { color: var(--fg); }
+
 @media (max-width: 600px) {
   dialog { max-width: 100%; margin: auto 12px 12px; }
   .row { min-height: 72px; padding: 0 20px; }
   .row .name { font-size: 22px; }
   .row .time { font-size: 28px; }
+  .about-wordmark { font-size: 44px; }
 }
