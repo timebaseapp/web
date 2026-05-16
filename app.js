@@ -4,6 +4,13 @@
 const STORAGE_KEY = 'timebase.v1';
 const PX_PER_MIN = 0.5;          // 1 minute per 0.5px of pan delta; ~10s per pixel
 const HOUR_SPAN = 24;
+const SCRUB_BOUND_MIN = 2 * 24 * 60;  // ±2 days
+
+function clampScrub(v) {
+  if (v > SCRUB_BOUND_MIN) return SCRUB_BOUND_MIN;
+  if (v < -SCRUB_BOUND_MIN) return -SCRUB_BOUND_MIN;
+  return v;
+}
 
 /* ───────────── palette ───────────── */
 
@@ -373,7 +380,7 @@ function onPointerMove(e) {
   const dist = Math.hypot(dx, dy);
   if (!dragHappened && dist > 4) dragHappened = true;
   if (!dragHappened) return;
-  store.scrubOffsetMin = initialScrub + (dx + (-dy)) * PX_PER_MIN;
+  store.scrubOffsetMin = clampScrub(initialScrub + (dx + (-dy)) * PX_PER_MIN);
   renderClock();
 }
 function onPointerUp() {
@@ -415,7 +422,7 @@ clockEl.addEventListener('wheel', e => {
   // Trackpad pixel deltas are tiny — scale up so 100px scroll feels like
   // a meaningful amount of time. PX_PER_MIN = 0.5 already, so half a pixel
   // per minute. Multiply by 2 to feel responsive.
-  store.scrubOffsetMin += projected * PX_PER_MIN * 2;
+  store.scrubOffsetMin = clampScrub(store.scrubOffsetMin + projected * PX_PER_MIN * 2);
   renderClock();
 }, { passive: false });
 
@@ -443,7 +450,7 @@ document.addEventListener('keydown', e => {
   let minutes = 15;
   if (e.metaKey || e.ctrlKey) minutes = 24 * 60;     // 1 day
   else if (e.shiftKey) minutes = 60;                  // 1 hour
-  store.scrubOffsetMin += direction * minutes;
+  store.scrubOffsetMin = clampScrub(store.scrubOffsetMin + direction * minutes);
   renderClock();
 });
 
