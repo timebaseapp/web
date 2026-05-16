@@ -1,0 +1,591 @@
+// Timebase — web app
+// Vanilla JS, no framework, no deps. State + scrub + OKLCH render.
+
+const STORAGE_KEY = 'timebase.v1';
+const PX_PER_MIN = 0.5;          // 1 minute per 0.5px of pan delta; ~10s per pixel
+const HOUR_SPAN = 24;
+
+/* ───────────── palette ───────────── */
+
+const PALETTE_LIGHT = [
+  [0,  '#2A2F4A'],
+  [4,  '#3D4A6E'],
+  [6,  '#E8C77F'],
+  [8,  '#F4E4C1'],
+  [12, '#F0B270'],
+  [16, '#D27A4A'],
+  [19, '#A14633'],
+  [21, '#5C3A5E'],
+  [24, '#2A2F4A'],
+];
+const PALETTE_DARK = [
+  [0,  '#0F1228'],
+  [4,  '#1A2342'],
+  [6,  '#8B6E3F'],
+  [8,  '#A89770'],
+  [12, '#A87440'],
+  [16, '#8B4F2E'],
+  [19, '#6B2E1E'],
+  [21, '#3A1F3D'],
+  [24, '#0F1228'],
+];
+
+/* ───────────── color math ───────────── */
+// sRGB hex → OKLCH (perceptually uniform).
+
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.slice(0, 2), 16) / 255,
+    parseInt(h.slice(2, 4), 16) / 255,
+    parseInt(h.slice(4, 6), 16) / 255,
+  ];
+}
+function srgbToLinear(c) {
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+function rgbToOklab([r, g, b]) {
+  r = srgbToLinear(r); g = srgbToLinear(g); b = srgbToLinear(b);
+  const l = 0.4122214708*r + 0.5363325363*g + 0.0514459929*b;
+  const m = 0.2119034982*r + 0.6806995451*g + 0.1073969566*b;
+  const s = 0.0883024619*r + 0.2817188376*g + 0.6299787005*b;
+  const l_ = Math.cbrt(l), m_ = Math.cbrt(m), s_ = Math.cbrt(s);
+  return [
+    0.2104542553*l_ + 0.7936177850*m_ - 0.0040720468*s_,
+    1.9779984951*l_ - 2.4285922050*m_ + 0.4505937099*s_,
+    0.0259040371*l_ + 0.7827717662*m_ - 0.8086757660*s_,
+  ];
+}
+function oklabToOklch([L, a, b]) {
+  return [L, Math.hypot(a, b), (Math.atan2(b, a) * 180 / Math.PI + 360) % 360];
+}
+function hexToOklch(hex) { return oklabToOklch(rgbToOklab(hexToRgb(hex))); }
+
+// Pre-compute OKLCH for each anchor.
+function precompute(palette) {
+  return palette.map(([h, hex]) => ({ hour: h, lch: hexToOklch(hex) }));
+}
+const ANCHORS = { light: precompute(PALETTE_LIGHT), dark: precompute(PALETTE_DARK) };
+
+// Hue lerp around the short arc.
+function lerpHue(h1, h2, t) {
+  let d = h2 - h1;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return (h1 + d * t + 360) % 360;
+}
+function interpolate(palette, hour) {
+  hour = ((hour % HOUR_SPAN) + HOUR_SPAN) % HOUR_SPAN;
+  for (let i = 0; i < palette.length - 1; i++) {
+    const a = palette[i], b = palette[i + 1];
+    if (hour >= a.hour && hour <= b.hour) {
+      const t = (hour - a.hour) / (b.hour - a.hour);
+      const [L1, C1, H1] = a.lch, [L2, C2, H2] = b.lch;
+      return [
+        L1 + (L2 - L1) * t,
+        C1 + (C2 - C1) * t,
+        lerpHue(H1, H2, t),
+      ];
+    }
+  }
+  return palette[0].lch;
+}
+function lchToCssColor([L, C, H]) {
+  return `oklch(${(L*100).toFixed(2)}% ${C.toFixed(4)} ${H.toFixed(2)})`;
+}
+function contrastForeground([L]) {
+  // L is 0..1 in OKLab. ~0.65 is the crossover for legible white-on-color.
+  return L < 0.62 ? '#FFFFFF' : '#0E0E10';
+}
+
+/* ───────────── time helpers ───────────── */
+
+function nowMs() { return Date.now() + store.scrubOffsetMin * 60_000; }
+
+function formatTime(ms, tz) {
+  const opts = {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: store.settings.h24 === 'system' ? undefined : store.settings.h24 === 'off',
+    timeZone: tz,
+  };
+  return new Intl.DateTimeFormat('en-US', opts).format(ms);
+}
+function formatHourFraction(ms, tz) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit', minute: '2-digit',
+    hour12: false, timeZone: tz,
+  }).formatToParts(ms);
+  const h = parseInt(parts.find(p => p.type === 'hour').value, 10);
+  const m = parseInt(parts.find(p => p.type === 'minute').value, 10);
+  return h + m / 60;
+}
+function dayKey(ms, tz) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(ms); // YYYY-MM-DD
+}
+function tzAbbr(ms, tz) {
+  try {
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' }).formatToParts(ms);
+    return p.find(x => x.type === 'timeZoneName')?.value || '';
+  } catch { return ''; }
+}
+function tzOffset(ms, tz) {
+  try {
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(ms);
+    return p.find(x => x.type === 'timeZoneName')?.value.replace('GMT', 'UTC') || '';
+  } catch { return ''; }
+}
+
+/* ───────────── distance & sunrise ───────────── */
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return Math.round(R * 2 * Math.asin(Math.sqrt(a)));
+}
+
+// Simplified NOAA solar calculation (accuracy ~1-2 min).
+function sunTimes(date, lat, lon) {
+  const J1970 = 2440588, J2000 = 2451545;
+  const dayMs = 86400000;
+  const toJulian = d => d / dayMs - 0.5 + J1970;
+  const fromJulian = j => new Date((j + 0.5 - J1970) * dayMs);
+  const rad = Math.PI / 180;
+  const e = rad * 23.4397;
+  const d = toJulian(date.getTime()) - J2000;
+  const n = Math.round(d - 0.0009 + lon / 360);
+  const ds = 0.0009 - lon / 360 + n;
+  const M = rad * ((357.5291 + 0.98560028 * ds) % 360);
+  const L = (M / rad + 1.9148 * Math.sin(M) + 0.0200 * Math.sin(2*M) + 0.0003 * Math.sin(3*M) + 102.9372 + 180) % 360 * rad;
+  const dec = Math.asin(Math.sin(L) * Math.sin(e));
+  const H = Math.acos((Math.sin(-0.83 * rad) - Math.sin(lat*rad) * Math.sin(dec)) / (Math.cos(lat*rad) * Math.cos(dec)));
+  if (isNaN(H)) return { sunrise: null, sunset: null };
+  const Jset = J2000 + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2*L) + (H/(2*Math.PI)) + ds;
+  const Jrise = J2000 + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2*L) - (H/(2*Math.PI)) + ds;
+  return { sunrise: fromJulian(Jrise), sunset: fromJulian(Jset) };
+}
+
+/* ───────────── store ───────────── */
+
+const store = {
+  cities: [],
+  homeId: null,
+  scrubOffsetMin: 0,
+  settings: { h24: 'system', appearance: 'system' },
+  hintSeen: false,
+};
+
+let CITY_DB = [];
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      Object.assign(store, s);
+    }
+  } catch {}
+}
+function saveState() {
+  const { cities, homeId, settings, hintSeen } = store;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ cities, homeId, settings, hintSeen }));
+}
+
+async function loadCityDB() {
+  try {
+    const res = await fetch('/cities.json');
+    CITY_DB = await res.json();
+  } catch (e) {
+    console.error('Failed to load cities.json', e);
+    CITY_DB = [];
+  }
+}
+
+function ensureDefaults() {
+  if (store.cities.length === 0) {
+    const guessTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const guessed = CITY_DB.find(c => c.tz === guessTz) ||
+                    CITY_DB.find(c => c.name === 'San Francisco');
+    const seeds = [guessed, ...['New York', 'London', 'Tokyo'].map(n => CITY_DB.find(c => c.name === n))]
+      .filter(Boolean)
+      .filter((c, i, arr) => arr.findIndex(x => x.tz === c.tz) === i);
+    store.cities = seeds.map(c => ({ ...c, id: cityId(c) }));
+    store.homeId = store.cities[0]?.id || null;
+    saveState();
+  }
+}
+
+function cityId(c) { return `${c.name}|${c.tz}`; }
+
+/* ───────────── render ───────────── */
+
+const clockEl = document.getElementById('clock');
+const scrubPill = document.getElementById('scrub-pill');
+const nextPill = document.getElementById('next-pill');
+
+function palette() {
+  const mode = currentAppearance();
+  return ANCHORS[mode];
+}
+function currentAppearance() {
+  if (store.settings.appearance === 'light') return 'light';
+  if (store.settings.appearance === 'dark') return 'dark';
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme() {
+  document.documentElement.dataset.theme = store.settings.appearance === 'system' ? '' : store.settings.appearance;
+}
+
+function renderClock() {
+  applyTheme();
+  const ms = nowMs();
+  const homeKey = store.homeId ? dayKey(ms, (store.cities.find(c => c.id === store.homeId)?.tz) || 'UTC') : null;
+  const pal = palette();
+
+  // Render rows.
+  const frag = document.createDocumentFragment();
+  for (const city of store.cities) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    if (city.id === store.homeId) row.classList.add('home');
+    row.dataset.id = city.id;
+
+    const h = formatHourFraction(ms, city.tz);
+    const lch = interpolate(pal, h);
+    const css = lchToCssColor(lch);
+    const fg = contrastForeground(lch);
+    row.style.setProperty('--row-bg', css);
+    row.style.setProperty('--row-fg', fg);
+
+    const dKey = dayKey(ms, city.tz);
+    let dayChip = '';
+    if (homeKey && dKey !== homeKey) {
+      const diff = (new Date(dKey) - new Date(homeKey)) / 86400000;
+      dayChip = `<span class="day-chip">${diff > 0 ? '+' : ''}${diff}d</span>`;
+    }
+
+    row.innerHTML = `
+      <div class="name">${city.name}</div>
+      <div class="time"><span>${formatTime(ms, city.tz)}</span>${dayChip}</div>
+    `;
+    row.addEventListener('click', e => {
+      if (!dragHappened) openDetailSheet(city.id);
+    });
+    frag.appendChild(row);
+  }
+  clockEl.replaceChildren(frag);
+
+  // Scrub pill.
+  if (store.scrubOffsetMin !== 0) {
+    document.body.classList.add('scrubbed');
+    scrubPill.textContent = formatDelta(store.scrubOffsetMin);
+    scrubPill.hidden = false;
+    nextPill.hidden = true;
+  } else {
+    document.body.classList.remove('scrubbed');
+    scrubPill.hidden = true;
+  }
+}
+
+function formatDelta(minutes) {
+  const sign = minutes > 0 ? '+' : '−';
+  const abs = Math.abs(minutes);
+  const days = Math.floor(abs / 1440);
+  const h = Math.floor((abs % 1440) / 60);
+  const m = Math.round(abs % 60);
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (h) parts.push(`${h}h`);
+  if (m && !days) parts.push(`${m}m`);
+  return `${sign}${parts.join(' ') || '0m'}`;
+}
+
+/* ───────────── scrub gesture ───────────── */
+
+let dragStart = null;
+let dragHappened = false;
+let velocity = 0;
+let lastDragTime = 0;
+let lastDragX = 0, lastDragY = 0;
+let inertiaRAF = null;
+let initialScrub = 0;
+
+function onPointerDown(e) {
+  if (e.target.closest('button, dialog, #menu-popover, #hint, .pill, #menu-trigger')) return;
+  if (inertiaRAF) { cancelAnimationFrame(inertiaRAF); inertiaRAF = null; }
+  dragStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+  initialScrub = store.scrubOffsetMin;
+  dragHappened = false;
+  velocity = 0;
+  lastDragX = e.clientX; lastDragY = e.clientY; lastDragTime = performance.now();
+  clockEl.setPointerCapture?.(e.pointerId);
+}
+function onPointerMove(e) {
+  if (!dragStart) return;
+  const dx = e.clientX - dragStart.x;
+  const dy = e.clientY - dragStart.y;
+  const dist = Math.hypot(dx, dy);
+  if (!dragHappened && dist > 4) dragHappened = true;
+  if (!dragHappened) return;
+  const delta = (dx + (-dy)) * PX_PER_MIN;
+  store.scrubOffsetMin = initialScrub + delta;
+
+  const now = performance.now();
+  const dt = now - lastDragTime;
+  if (dt > 0) {
+    const instDx = (e.clientX - lastDragX) + (lastDragY - e.clientY);
+    velocity = 0.7 * velocity + 0.3 * (instDx * PX_PER_MIN / dt); // min/ms
+  }
+  lastDragX = e.clientX; lastDragY = e.clientY; lastDragTime = now;
+
+  renderClock();
+}
+function onPointerUp(e) {
+  if (!dragStart) return;
+  dragStart = null;
+  if (!dragHappened) return;
+  // Inertia.
+  const decay = 0.96;
+  let v = velocity * 16; // approx per-frame at 60fps
+  function step() {
+    if (Math.abs(v) < 0.01) { inertiaRAF = null; return; }
+    store.scrubOffsetMin += v;
+    v *= decay;
+    renderClock();
+    inertiaRAF = requestAnimationFrame(step);
+  }
+  if (Math.abs(v) > 0.05) inertiaRAF = requestAnimationFrame(step);
+}
+
+function snapToNow() {
+  if (inertiaRAF) cancelAnimationFrame(inertiaRAF);
+  const start = store.scrubOffsetMin;
+  const t0 = performance.now();
+  const duration = 320;
+  function step(t) {
+    const k = Math.min(1, (t - t0) / duration);
+    const eased = 1 - Math.pow(1 - k, 3);
+    store.scrubOffsetMin = start * (1 - eased);
+    renderClock();
+    if (k < 1) requestAnimationFrame(step);
+    else { store.scrubOffsetMin = 0; renderClock(); }
+  }
+  requestAnimationFrame(step);
+}
+
+clockEl.addEventListener('pointerdown', onPointerDown);
+clockEl.addEventListener('pointermove', onPointerMove);
+clockEl.addEventListener('pointerup', onPointerUp);
+clockEl.addEventListener('pointercancel', onPointerUp);
+clockEl.addEventListener('dblclick', snapToNow);
+scrubPill.addEventListener('click', snapToNow);
+
+// Keyboard shortcut.
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && store.scrubOffsetMin !== 0) snapToNow();
+});
+
+/* ───────────── menu + sheets ───────────── */
+
+const menuTrigger = document.getElementById('menu-trigger');
+const menuPopover = document.getElementById('menu-popover');
+
+menuTrigger.addEventListener('click', e => {
+  e.stopPropagation();
+  menuPopover.hidden = !menuPopover.hidden;
+});
+document.addEventListener('click', e => {
+  if (!menuPopover.contains(e.target) && e.target !== menuTrigger) menuPopover.hidden = true;
+});
+menuPopover.addEventListener('click', e => {
+  const action = e.target.dataset?.action;
+  if (action === 'add') { menuPopover.hidden = true; openAddSheet(); }
+  if (action === 'settings') { menuPopover.hidden = true; openSettings(); }
+});
+
+// Add city sheet
+const addSheet = document.getElementById('add-sheet');
+const citySearch = document.getElementById('city-search');
+const cityResults = document.getElementById('city-results');
+const sectionLabel = document.getElementById('city-section-label');
+
+function openAddSheet() {
+  citySearch.value = '';
+  populateCityList('');
+  addSheet.showModal();
+  requestAnimationFrame(() => citySearch.focus());
+}
+function populateCityList(query) {
+  const q = query.trim().toLowerCase();
+  const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  let list;
+  if (!q) {
+    list = CITY_DB.filter(c => c.popular).slice(0, 12);
+    sectionLabel.textContent = 'Suggested';
+  } else {
+    list = CITY_DB
+      .filter(c => norm(c.name).includes(q) || norm(c.country).includes(q))
+      .slice(0, 50);
+    sectionLabel.textContent = list.length ? 'Results' : 'No matches';
+  }
+  cityResults.replaceChildren(...list.map(c => {
+    const li = document.createElement('li');
+    const inList = store.cities.some(x => x.id === cityId(c));
+    li.innerHTML = `<span>${c.name}</span><span class="country">${c.country}${inList ? ' · added' : ''}</span>`;
+    if (inList) li.style.opacity = '0.5';
+    else li.addEventListener('click', () => {
+      store.cities.push({ ...c, id: cityId(c) });
+      saveState();
+      renderClock();
+      addSheet.close();
+    });
+    return li;
+  }));
+}
+citySearch?.addEventListener('input', () => populateCityList(citySearch.value));
+
+// Detail sheet
+const detailSheet = document.getElementById('detail-sheet');
+const detailBody = document.getElementById('detail-body');
+let activeDetailId = null;
+
+function openDetailSheet(id) {
+  activeDetailId = id;
+  renderDetail();
+  detailSheet.showModal();
+}
+function renderDetail() {
+  const c = store.cities.find(x => x.id === activeDetailId);
+  if (!c) return;
+  const ms = nowMs();
+  const h = formatHourFraction(ms, c.tz);
+  const time = formatTime(ms, c.tz);
+  const offset = tzOffset(ms, c.tz);
+  const abbr = tzAbbr(ms, c.tz);
+  const home = store.cities.find(x => x.id === store.homeId);
+  const homeFact = home && home.id !== c.id ? hourDelta(home, c) : 'This is home';
+  const distance = home && home.id !== c.id ? `${haversineKm(home.lat, home.lon, c.lat, c.lon).toLocaleString()} km` : '—';
+
+  // Day-bar gradient (24 stops).
+  const pal = palette();
+  const stops = [];
+  for (let i = 0; i <= 24; i++) {
+    stops.push(`${lchToCssColor(interpolate(pal, i))} ${(i/24*100).toFixed(1)}%`);
+  }
+  const barGradient = `linear-gradient(to right, ${stops.join(', ')})`;
+  const nowPct = (h / 24 * 100).toFixed(2);
+
+  // Sunrise / sunset.
+  const localNow = new Date(ms);
+  const sun = sunTimes(localNow, c.lat, c.lon);
+  const sunStr = (d) => d ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: c.tz, hour12: store.settings.h24 !== 'on' }).format(d) : '—';
+  let sunrisePct = null, sunsetPct = null;
+  if (sun.sunrise) sunrisePct = (formatHourFraction(sun.sunrise.getTime(), c.tz) / 24 * 100).toFixed(2);
+  if (sun.sunset) sunsetPct = (formatHourFraction(sun.sunset.getTime(), c.tz) / 24 * 100).toFixed(2);
+
+  detailBody.innerHTML = `
+    <h3>${c.name}</h3>
+    <p class="country">${c.country}</p>
+    <p class="big-time">${time}</p>
+    <p class="tz">${abbr ? abbr + '  ·  ' : ''}${offset}</p>
+    <div class="daybar" style="background:${barGradient}">
+      ${sunrisePct !== null ? `<div class="tick" style="left:${sunrisePct}%"></div>` : ''}
+      ${sunsetPct !== null ? `<div class="tick" style="left:${sunsetPct}%"></div>` : ''}
+      <div class="sun-now" style="left:${nowPct}%"></div>
+    </div>
+    <p class="day-meta">
+      <span>rises ${sunStr(sun.sunrise)}</span>
+      <span>sets ${sunStr(sun.sunset)}</span>
+    </p>
+    <ul class="facts">
+      <li><span class="label">From home</span>${homeFact}</li>
+      <li><span class="label">Distance</span>${distance}</li>
+    </ul>
+  `;
+}
+function hourDelta(home, c) {
+  const ms = nowMs();
+  const hh = formatHourFraction(ms, home.tz);
+  const ch = formatHourFraction(ms, c.tz);
+  let d = ch - hh;
+  if (d > 12) d -= 24;
+  if (d < -12) d += 24;
+  const sign = d > 0 ? '+' : (d < 0 ? '−' : '');
+  const abs = Math.abs(d);
+  const whole = Math.floor(abs);
+  const frac = abs - whole;
+  const half = Math.abs(frac - 0.5) < 0.1;
+  const quarter = Math.abs(frac - 0.25) < 0.1 || Math.abs(frac - 0.75) < 0.1;
+  return `${sign}${whole}${half ? '½' : quarter ? '¾' : ''} hours from ${home.name}`;
+}
+document.getElementById('make-home-btn').addEventListener('click', () => {
+  if (!activeDetailId) return;
+  store.homeId = activeDetailId;
+  saveState();
+  renderClock();
+  detailSheet.close();
+});
+document.getElementById('remove-btn').addEventListener('click', () => {
+  if (!activeDetailId) return;
+  if (store.cities.length <= 1) { alert('Add another city before removing this one.'); return; }
+  store.cities = store.cities.filter(c => c.id !== activeDetailId);
+  if (store.homeId === activeDetailId) store.homeId = store.cities[0].id;
+  saveState();
+  renderClock();
+  detailSheet.close();
+});
+
+// Settings sheet
+const settingsSheet = document.getElementById('settings-sheet');
+const setting24h = document.getElementById('setting-24h');
+const settingAppearance = document.getElementById('setting-appearance');
+
+function openSettings() {
+  setting24h.value = store.settings.h24;
+  settingAppearance.value = store.settings.appearance;
+  settingsSheet.showModal();
+}
+setting24h.addEventListener('change', () => {
+  store.settings.h24 = setting24h.value;
+  saveState();
+  renderClock();
+});
+settingAppearance.addEventListener('change', () => {
+  store.settings.appearance = settingAppearance.value;
+  saveState();
+  applyTheme();
+  renderClock();
+});
+document.getElementById('add-city-from-settings').addEventListener('click', () => {
+  settingsSheet.close();
+  openAddSheet();
+});
+
+// First-run hint
+const hint = document.getElementById('hint');
+document.getElementById('hint-dismiss').addEventListener('click', () => {
+  hint.hidden = true;
+  store.hintSeen = true;
+  saveState();
+});
+function maybeShowHint() {
+  if (!store.hintSeen) hint.hidden = false;
+}
+
+/* ───────────── lifecycle ───────────── */
+
+async function init() {
+  loadState();
+  await loadCityDB();
+  ensureDefaults();
+  applyTheme();
+  renderClock();
+  maybeShowHint();
+  setInterval(renderClock, 1000);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => renderClock());
+}
+
+init();

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Timebase</title>
+<meta name="description" content="A world clock you actually want to open. Drag anywhere to see what time it'll be." />
+<meta name="theme-color" content="#F8F6F2" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<main id="clock" aria-label="World clock"></main>
+
+<button id="menu-trigger" type="button" aria-label="Menu"><span></span></button>
+<div id="next-pill" class="pill" hidden></div>
+<div id="scrub-pill" class="pill" hidden></div>
+
+<!-- Add city sheet -->
+<dialog id="add-sheet" aria-label="Add city">
+  <form method="dialog" class="sheet-inner">
+    <header>
+      <input id="city-search" type="search" placeholder="Search 1,500+ cities" autocomplete="off" autocorrect="off" />
+      <button type="submit" value="cancel" aria-label="Close">Done</button>
+    </header>
+    <h2 id="city-section-label">Suggested</h2>
+    <ul id="city-results"></ul>
+  </form>
+</dialog>
+
+<!-- City detail sheet -->
+<dialog id="detail-sheet" aria-label="City details">
+  <form method="dialog" class="sheet-inner detail">
+    <header>
+      <span></span>
+      <button type="submit" value="cancel">Done</button>
+    </header>
+    <div id="detail-body"></div>
+    <footer>
+      <button type="button" id="make-home-btn">Make home</button>
+      <button type="button" id="remove-btn" class="danger">Remove from list</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Settings sheet -->
+<dialog id="settings-sheet" aria-label="Settings">
+  <form method="dialog" class="sheet-inner">
+    <header>
+      <h2>Settings</h2>
+      <button type="submit" value="cancel">Done</button>
+    </header>
+    <ul class="settings">
+      <li>
+        <label for="setting-24h">24-hour time</label>
+        <select id="setting-24h">
+          <option value="system">System</option>
+          <option value="on">On</option>
+          <option value="off">Off</option>
+        </select>
+      </li>
+      <li>
+        <label for="setting-appearance">Appearance</label>
+        <select id="setting-appearance">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </li>
+      <li>
+        <button type="button" id="add-city-from-settings">Add city</button>
+      </li>
+      <li class="about">
+        <p>Timebase shows time, everywhere.</p>
+        <p class="muted">v1 · <a href="https://github.com/timebaseapp" target="_blank" rel="noopener">github</a></p>
+      </li>
+    </ul>
+  </form>
+</dialog>
+
+<!-- Menu popover -->
+<div id="menu-popover" hidden>
+  <button type="button" data-action="add">Add city</button>
+  <button type="button" data-action="settings">Settings</button>
+</div>
+
+<!-- First-run hint -->
+<div id="hint" hidden>
+  <p>Drag anywhere to see what time it'll be.</p>
+  <p>Double-tap to return to now.</p>
+  <button type="button" id="hint-dismiss">Got it</button>
+</div>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>
