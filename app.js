@@ -238,22 +238,15 @@ function ensureDefaults() {
 
 function cityId(c) { return `${c.name}|${c.tz}`; }
 
-// Home stays first, others ordered by raw UTC offset ascending (smooth east-
-// bound color flow).
+// All cities (including home) sorted by UTC offset ascending — colors flow
+// as a continuous gradient. Home is marked with a 🏠 prefix on its row.
 function orderedCities() {
-  const home = store.cities.find(c => c.id === store.homeId) || store.cities[0];
-  if (!home) return [];
-  const others = store.cities.filter(c => c.id !== home.id);
-  const offset = c => -new Date().getTimezoneOffset() === 0
-    ? 0
-    : tzOffsetMinutes(c.tz);
-  others.sort((a, b) => {
+  return [...store.cities].sort((a, b) => {
     const aOff = tzOffsetMinutes(a.tz);
     const bOff = tzOffsetMinutes(b.tz);
     if (aOff === bOff) return a.name.localeCompare(b.name);
     return aOff - bOff;
   });
-  return [home, ...others];
 }
 
 function tzOffsetMinutes(tz) {
@@ -324,8 +317,10 @@ function renderClock() {
       dayChip = `<span class="day-chip">${diff > 0 ? '+' : ''}${diff}d</span>`;
     }
 
+    const isHome = city.id === store.homeId;
+    const displayName = isHome ? `🏠&nbsp;&nbsp;${city.name}` : city.name;
     row.innerHTML = `
-      <div class="name">${city.name}</div>
+      <div class="name">${displayName}</div>
       <div class="time"><span>${formatTime(ms, city.tz)}</span>${dayChip}</div>
     `;
     row.addEventListener('click', e => {
