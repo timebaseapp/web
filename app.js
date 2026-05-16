@@ -7,27 +7,38 @@ const HOUR_SPAN = 24;
 
 /* ───────────── palette ───────────── */
 
+// Alto-inspired muted earthy palette. Painterly, never punchy.
 const PALETTE_LIGHT = [
-  [0,  '#2A2F4A'],
-  [4,  '#3D4A6E'],
-  [6,  '#E8C77F'],
-  [8,  '#F4E4C1'],
-  [12, '#F0B270'],
-  [16, '#D27A4A'],
-  [19, '#A14633'],
-  [21, '#5C3A5E'],
-  [24, '#2A2F4A'],
+  [0,    '#1E2538'],
+  [3,    '#2A3548'],
+  [5.5,  '#5C5A6E'],
+  [6.5,  '#C4B098'],
+  [8,    '#D9CDB4'],
+  [10,   '#C5C3A5'],
+  [12,   '#D9C898'],
+  [14,   '#C9A874'],
+  [16,   '#C4905E'],
+  [18,   '#B07248'],
+  [19.5, '#8A5440'],
+  [21,   '#4A4458'],
+  [23,   '#26304A'],
+  [24,   '#1E2538'],
 ];
 const PALETTE_DARK = [
-  [0,  '#0F1228'],
-  [4,  '#1A2342'],
-  [6,  '#8B6E3F'],
-  [8,  '#A89770'],
-  [12, '#A87440'],
-  [16, '#8B4F2E'],
-  [19, '#6B2E1E'],
-  [21, '#3A1F3D'],
-  [24, '#0F1228'],
+  [0,    '#0F1322'],
+  [3,    '#171F30'],
+  [5.5,  '#3A3848'],
+  [6.5,  '#7A6B58'],
+  [8,    '#8A806B'],
+  [10,   '#7E7C66'],
+  [12,   '#8C7E5C'],
+  [14,   '#836846'],
+  [16,   '#7C5638'],
+  [18,   '#6E4530'],
+  [19.5, '#5A3528'],
+  [21,   '#302C3A'],
+  [23,   '#171F30'],
+  [24,   '#0F1322'],
 ];
 
 /* ───────────── color math ───────────── */
@@ -219,6 +230,40 @@ function ensureDefaults() {
 
 function cityId(c) { return `${c.name}|${c.tz}`; }
 
+// Home stays first, others ordered by raw UTC offset ascending (smooth east-
+// bound color flow).
+function orderedCities() {
+  const home = store.cities.find(c => c.id === store.homeId) || store.cities[0];
+  if (!home) return [];
+  const others = store.cities.filter(c => c.id !== home.id);
+  const offset = c => -new Date().getTimezoneOffset() === 0
+    ? 0
+    : tzOffsetMinutes(c.tz);
+  others.sort((a, b) => {
+    const aOff = tzOffsetMinutes(a.tz);
+    const bOff = tzOffsetMinutes(b.tz);
+    if (aOff === bOff) return a.name.localeCompare(b.name);
+    return aOff - bOff;
+  });
+  return [home, ...others];
+}
+
+function tzOffsetMinutes(tz) {
+  // Get current UTC offset in minutes for the given IANA timezone.
+  const now = new Date();
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, timeZoneName: 'longOffset',
+  });
+  const parts = dtf.formatToParts(now);
+  const tzn = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
+  const m = tzn.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
+  if (!m) return 0;
+  const sign = m[1] === '-' ? -1 : 1;
+  const h = parseInt(m[2], 10);
+  const mm = m[3] ? parseInt(m[3], 10) : 0;
+  return sign * (h * 60 + mm);
+}
+
 /* ───────────── render ───────────── */
 
 const clockEl = document.getElementById('clock');
@@ -247,17 +292,21 @@ function renderClock() {
 
   // Render rows.
   const frag = document.createDocumentFragment();
-  for (const city of store.cities) {
+  for (const city of orderedCities()) {
     const row = document.createElement('div');
     row.className = 'row';
-    if (city.id === store.homeId) row.classList.add('home');
     row.dataset.id = city.id;
 
     const h = formatHourFraction(ms, city.tz);
     const lch = interpolate(pal, h);
-    const css = lchToCssColor(lch);
+    const cssBase = lchToCssColor(lch);
+    // Two-stop subtle gradient: lighter top, slightly deeper bottom.
+    const topLch = [Math.min(1, lch[0] + 0.035), lch[1] * 0.95, lch[2]];
+    const botLch = [Math.max(0, lch[0] - 0.025), lch[1], lch[2]];
+    row.style.setProperty('--row-bg-top', lchToCssColor(topLch));
+    row.style.setProperty('--row-bg-bot', lchToCssColor(botLch));
+    row.style.setProperty('--row-bg', cssBase);
     const fg = contrastForeground(lch);
-    row.style.setProperty('--row-bg', css);
     row.style.setProperty('--row-fg', fg);
 
     const dKey = dayKey(ms, city.tz);

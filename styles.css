@@ -77,25 +77,47 @@ body {
   align-items: center;
   padding: 0 max(28px, env(safe-area-inset-left)) 0 max(28px, env(safe-area-inset-right));
   position: relative;
-  border-top: 0.5px solid var(--rule);
-  background: var(--row-bg, transparent);
+  border-top: 0.5px solid rgba(0,0,0,0.06);
+  /* Two-stop vertical gradient — "almost solid but breathing". */
+  background:
+    linear-gradient(180deg, var(--row-bg-top, var(--row-bg, transparent)) 0%, var(--row-bg-bot, var(--row-bg, transparent)) 100%);
   color: var(--row-fg, var(--fg));
   transition: filter 0.25s ease;
   cursor: pointer;
+  isolation: isolate;
 }
 
-.row:first-child { border-top: none; }
-
-.row.home::before {
+.row::after {
+  /* Paper-grain texture overlay. Two layers (soft-light + overlay) so the
+     texture reads on both light and dark rows. */
   content: "";
   position: absolute;
-  left: 0;
-  top: 18%;
-  bottom: 18%;
-  width: 2px;
-  background: var(--row-fg, var(--fg));
-  opacity: 0.85;
+  inset: 0;
+  background-image: url('/grain.png');
+  background-size: 256px 256px;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
 }
+
+.row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('/grain.png');
+  background-size: 256px 256px;
+  background-repeat: repeat;
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.row > * { position: relative; z-index: 1; }
+
+.row:first-child { border-top: none; }
 
 .row .name {
   font-size: 22px;
