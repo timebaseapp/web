@@ -483,7 +483,7 @@ ul.settings li.about a { color: var(--fg-muted); }
 
 /* About card — Macintosh-style */
 #about-sheet {
-  max-width: 380px;
+  max-width: 460px;
 }
 #about-sheet::backdrop {
   background: rgba(0,0,0,0.3);
@@ -502,13 +502,12 @@ ul.settings li.about a { color: var(--fg-muted); }
 }
 
 .about-wordmark {
-  font-family: "Fraunces", ui-serif, Georgia, serif;
-  font-weight: 900;
-  font-size: 56px;
+  font-family: "Crimson Text", ui-serif, Georgia, serif;
+  font-weight: 600;
+  font-size: 52px;
   line-height: 1;
-  letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
-  margin: 4px 0 4px;
+  letter-spacing: -0.005em;
+  margin: 4px 0 6px;
   color: var(--fg);
 }
 
@@ -526,8 +525,7 @@ ul.settings li.about a { color: var(--fg-muted); }
   font-size: 14px;
   line-height: 1.45;
   color: var(--fg);
-  margin: 0 auto 10px;
-  max-width: 30ch;
+  margin: 0 0 10px;
 }
 
 .about-subline {
@@ -535,8 +533,7 @@ ul.settings li.about a { color: var(--fg-muted); }
   font-size: 11px;
   line-height: 1.5;
   color: var(--fg-muted);
-  margin: 0 auto 22px;
-  max-width: 36ch;
+  margin: 0 0 22px;
 }
 
 .about-settings {
@@ -664,5 +661,5 @@ ul.settings li.about a { color: var(--fg-muted); }
   .row { min-height: 72px; padding: 0 20px; }
   .row .name { font-size: 22px; }
   .row .time { font-size: 28px; }
-  .about-wordmark { font-size: 44px; }
+  .about-wordmark { font-size: 40px; }
 }
