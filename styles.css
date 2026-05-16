@@ -172,42 +172,108 @@ body.scrubbed .row { filter: saturate(0.65); }
 }
 #dock > * { pointer-events: auto; }
 
+/* Skeuomorphic pills — Teenage Engineering / Braun button feel.
+   Subtle gradient (light from above), inset highlight at the top, soft cast
+   shadow on the surface, grain texture overlay. Pressable on :active. */
 .pill {
-  background: var(--bg);
-  color: var(--fg);
-  border: 0.5px solid var(--rule);
+  --pill-fill-top: #F5F2EC;
+  --pill-fill-bot: #E0DAD0;
+  --pill-edge:     rgba(40, 30, 18, 0.18);
+  --pill-highlight: rgba(255, 255, 255, 0.85);
+  --pill-shadow:   0 1px 0 rgba(255,255,255,0.6) inset,
+                   0 -1px 0 rgba(0,0,0,0.06) inset,
+                   0 1px 1px rgba(0,0,0,0.06),
+                   0 4px 10px rgba(0,0,0,0.10);
+
+  background: linear-gradient(180deg, var(--pill-fill-top), var(--pill-fill-bot));
+  color: #1c1c1f;
+  border: 0.5px solid var(--pill-edge);
   padding: 10px 18px;
   border-radius: 999px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--pill-shadow);
   font-variant-numeric: tabular-nums;
   font-family: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  isolation: isolate;
+  transition: transform 0.08s ease-out, box-shadow 0.12s;
+}
+
+.pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: url("/grain.png");
+  background-size: 128px 128px;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.pill:hover { transform: translateY(-0.5px); }
+.pill:active {
+  transform: translateY(0.5px);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.10) inset,
+              0 -1px 0 rgba(255,255,255,0.4) inset,
+              0 1px 1px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .pill {
+    --pill-fill-top: #2E2A24;
+    --pill-fill-bot: #1A1714;
+    --pill-edge:     rgba(0, 0, 0, 0.55);
+    --pill-highlight: rgba(255,255,255,0.10);
+    --pill-shadow:   0 1px 0 rgba(255,255,255,0.10) inset,
+                     0 -1px 0 rgba(0,0,0,0.40) inset,
+                     0 2px 2px rgba(0,0,0,0.30),
+                     0 6px 14px rgba(0,0,0,0.40);
+    color: #F0EBE2;
+  }
+}
+
+:root[data-theme="light"] .pill {
+  --pill-fill-top: #F5F2EC; --pill-fill-bot: #E0DAD0;
+  --pill-edge: rgba(40,30,18,0.18); color: #1c1c1f;
+  --pill-shadow: 0 1px 0 rgba(255,255,255,0.6) inset,
+                 0 -1px 0 rgba(0,0,0,0.06) inset,
+                 0 1px 1px rgba(0,0,0,0.06),
+                 0 4px 10px rgba(0,0,0,0.10);
+}
+:root[data-theme="dark"] .pill {
+  --pill-fill-top: #2E2A24; --pill-fill-bot: #1A1714;
+  --pill-edge: rgba(0,0,0,0.55); color: #F0EBE2;
+  --pill-shadow: 0 1px 0 rgba(255,255,255,0.10) inset,
+                 0 -1px 0 rgba(0,0,0,0.40) inset,
+                 0 2px 2px rgba(0,0,0,0.30),
+                 0 6px 14px rgba(0,0,0,0.40);
 }
 
 .pill[hidden] { display: none; }
 
 .icon-pill {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   padding: 0;
-  color: var(--fg);
 }
 
 .icon-pill .info-glyph {
   font-family: "Times New Roman", Times, serif;
   font-style: italic;
-  font-size: 18px;
-  font-weight: 500;
+  font-size: 19px;
+  font-weight: 600;
   line-height: 1;
 }
 
-#scrub-pill { font-weight: 800; }
+#scrub-pill { font-weight: 800; padding: 10px 22px; }
 
 /* Sheets */
 dialog {
