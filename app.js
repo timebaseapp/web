@@ -427,6 +427,8 @@ document.addEventListener('keydown', e => {
   // Don't intercept when an input/textarea is focused.
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  // If a dialog is open, defer Escape to the dialog so it can close.
+  if (e.key === 'Escape' && document.querySelector('dialog[open]')) return;
 
   if ((e.key === 'Escape' || e.key === ' ') && store.scrubOffsetMin !== 0) {
     e.preventDefault();
