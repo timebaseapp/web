@@ -59,6 +59,17 @@
 <!-- About card — Macintosh-style -->
 <dialog id="about-sheet" aria-label="About Timebase">
   <form method="dialog" class="about-card">
+    <div class="traffic-lights">
+      <button type="submit" value="cancel" class="traffic-light close" aria-label="Close">
+        <svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1.5 1.5l5 5M6.5 1.5l-5 5"/></svg>
+      </button>
+      <span class="traffic-light minimize" aria-hidden="true">
+        <svg viewBox="0 0 8 8"><path d="M1.5 4h5"/></svg>
+      </span>
+      <span class="traffic-light maximize" aria-hidden="true">
+        <svg viewBox="0 0 8 8"><path d="M2 2h4v4h-4z" fill="none"/></svg>
+      </span>
+    </div>
     <div class="about-wordmark">Timebase</div>
     <div class="about-version">v1.0 · 2026</div>
     <p class="about-tagline">A quieter way to think across timezones.</p>
@@ -100,7 +111,6 @@
       </div>
     </div>
 
-    <button class="about-close" type="submit" value="cancel" aria-label="Close">esc</button>
   </form>
 </dialog>
 
