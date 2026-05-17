@@ -112,14 +112,17 @@ body {
 }
 
 .row::before {
+  /* Two stacked textures via multiple backgrounds:
+     - fluted glass (low-frequency vertical ribs)
+     - paper grain (high-frequency noise) */
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url('/grain.png');
-  background-size: 256px 256px;
-  background-repeat: repeat;
-  mix-blend-mode: soft-light;
-  opacity: 0.9;
+  background-image: url('/flutes.png'), url('/grain.png');
+  background-size: 256px 512px, 256px 256px;
+  background-repeat: repeat, repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.55;
   pointer-events: none;
   z-index: 0;
 }
@@ -310,9 +313,9 @@ dialog::backdrop {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("/grain.png");
-  background-size: 256px 256px;
-  background-repeat: repeat;
+  background-image: url("/flutes.png"), url("/grain.png");
+  background-size: 256px 512px, 256px 256px;
+  background-repeat: repeat, repeat;
   mix-blend-mode: overlay;
   opacity: 0.45;
   pointer-events: none;
@@ -590,9 +593,9 @@ ul.settings li.about a { color: var(--fg-muted); }
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("/grain.png");
-  background-size: 256px 256px;
-  background-repeat: repeat;
+  background-image: url("/flutes.png"), url("/grain.png");
+  background-size: 256px 512px, 256px 256px;
+  background-repeat: repeat, repeat;
   mix-blend-mode: overlay;
   opacity: 0.45;
   pointer-events: none;
