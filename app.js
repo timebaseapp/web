@@ -450,8 +450,8 @@ document.addEventListener('keydown', e => {
     return;
   }
   let direction = 0;
-  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') direction = 1;
-  else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') direction = -1;
+  if (e.key === 'ArrowUp') direction = 1;
+  else if (e.key === 'ArrowDown') direction = -1;
   if (!direction) return;
   e.preventDefault();
   let minutes = 15;
