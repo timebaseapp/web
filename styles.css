@@ -112,8 +112,20 @@ body {
 }
 
 .row::before {
-  /* Paper grain only — each row IS one flute, the vertical gradient
-     (lighter top, deeper bottom) creates the single-flute curvature. */
+  /* Vertical fluted glass — soft cylindrical ribs spanning the screen. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('/flutes.png');
+  background-size: 480px 100%;
+  background-repeat: repeat-x;
+  mix-blend-mode: overlay;
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: 0;
+}
+.row::after {
+  /* Paper grain on top of the glass ribs */
   content: "";
   position: absolute;
   inset: 0;
@@ -121,16 +133,9 @@ body {
   background-size: 256px 256px;
   background-repeat: repeat;
   mix-blend-mode: soft-light;
-  opacity: 0.9;
+  opacity: 0.65;
   pointer-events: none;
   z-index: 0;
-}
-
-/* Top highlight + bottom shadow rim — sells the "single flute" curvature. */
-.row {
-  background-image:
-    linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 8px, rgba(255,255,255,0) calc(100% - 8px), rgba(0,0,0,0.16) 100%),
-    linear-gradient(180deg, var(--row-bg-top, var(--row-bg, transparent)) 0%, var(--row-bg-bot, var(--row-bg, transparent)) 100%);
 }
 
 .row > * { position: relative; z-index: 1; }
@@ -138,10 +143,9 @@ body {
 .row:first-child { border-top: none; }
 
 .row .name {
-  font-family: "Crimson Text", ui-serif, Georgia, serif;
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
 }
 
 .row .time {
