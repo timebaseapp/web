@@ -525,14 +525,26 @@ function populateCityList(query) {
   }
   cityResults.replaceChildren(...list.map(c => {
     const li = document.createElement('li');
-    const inList = store.cities.some(x => x.id === cityId(c));
-    li.innerHTML = `<span>${c.name}</span><span class="country">${c.country}${inList ? ' · added' : ''}</span>`;
-    if (inList) li.style.opacity = '0.5';
-    else li.addEventListener('click', () => {
-      store.cities.push({ ...c, id: cityId(c) });
-      saveState();
-      renderClock();
-      addSheet.close();
+    const id = cityId(c);
+    const inList = store.cities.some(x => x.id === id);
+    li.innerHTML = `<span>${c.name}</span><span class="country">${c.country}${inList ? ' · added (tap to remove)' : ''}</span>`;
+    li.addEventListener('click', () => {
+      if (inList) {
+        if (store.cities.length <= 1) {
+          alert('Add another city before removing this one.');
+          return;
+        }
+        store.cities = store.cities.filter(x => x.id !== id);
+        if (store.homeId === id) store.homeId = store.cities[0].id;
+        saveState();
+        renderClock();
+        populateCityList(citySearch.value);  // refresh list state
+      } else {
+        store.cities.push({ ...c, id });
+        saveState();
+        renderClock();
+        addSheet.close();
+      }
     });
     return li;
   }));
