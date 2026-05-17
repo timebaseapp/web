@@ -323,9 +323,8 @@ function renderClock() {
       <div class="name">${displayName}</div>
       <div class="time"><span>${formatTime(ms, city.tz)}</span>${dayChip}</div>
     `;
-    row.addEventListener('click', e => {
-      if (!dragHappened) openDetailSheet(city.id);
-    });
+    // Tap handling now lives in onPointerUp so we don't rely on synthetic
+    // click events that can be eaten by pointer capture.
     frag.appendChild(row);
   }
   clockEl.replaceChildren(frag);
@@ -360,29 +359,42 @@ function formatDelta(minutes) {
 let dragStart = null;
 let dragHappened = false;
 let initialScrub = 0;
+let dragTargetRow = null;
 
 function onPointerDown(e) {
   if (e.target.closest('button, dialog, #menu-popover, #hint, .pill, #menu-trigger')) return;
   dragStart = { x: e.clientX, y: e.clientY };
   initialScrub = store.scrubOffsetMin;
   dragHappened = false;
-  clockEl.setPointerCapture?.(e.pointerId);
+  dragTargetRow = e.target.closest('.row');
 }
 function onPointerMove(e) {
   if (!dragStart) return;
   const dx = e.clientX - dragStart.x;
   const dy = e.clientY - dragStart.y;
   const dist = Math.hypot(dx, dy);
-  // 10px threshold so a small wiggle during a click doesn't trip the
-  // scrub and swallow the row's tap-to-open-detail.
   if (!dragHappened && dist > 10) dragHappened = true;
   if (!dragHappened) return;
-  store.scrubOffsetMin = clampScrub(initialScrub + (dx + (-dy)) * PX_PER_MIN);
+  // Vertical-only scrub to match iOS — only claim the gesture once vertical
+  // motion clearly dominates. Up = advance time, down = rewind.
+  if (Math.abs(dy) < Math.abs(dx) * 0.6) return;
+  store.scrubOffsetMin = clampScrub(initialScrub + (-dy) * PX_PER_MIN);
   renderClock();
 }
-function onPointerUp() {
-  // Direct manipulation only — no inertia, no spring.
+function onPointerUp(e) {
+  if (!dragStart) return;
+  const dx = e.clientX - dragStart.x;
+  const dy = e.clientY - dragStart.y;
+  const dist = Math.hypot(dx, dy);
+  const wasShortTap = dist < 10 && dragTargetRow;
   dragStart = null;
+  // Tap on a row → open detail sheet (reliable, doesn't depend on the
+  // click event which can be flaky with pointer capture / event ordering).
+  if (wasShortTap) {
+    const id = dragTargetRow.dataset.id;
+    if (id) openDetailSheet(id);
+  }
+  dragTargetRow = null;
 }
 
 function snapToNow() {
@@ -415,10 +427,8 @@ clockEl.addEventListener('wheel', e => {
   e.preventDefault();
   // deltaMode: 0 = pixel, 1 = line, 2 = page. Normalize.
   const scale = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 800 : 1);
-  const projected = (e.deltaX * scale) + (-e.deltaY * scale);
-  // Trackpad pixel deltas are tiny — scale up so 100px scroll feels like
-  // a meaningful amount of time. PX_PER_MIN = 0.5 already, so half a pixel
-  // per minute. Multiply by 2 to feel responsive.
+  // Vertical-only on web too (matches iOS). Scroll up = advance time.
+  const projected = -e.deltaY * scale;
   store.scrubOffsetMin = clampScrub(store.scrubOffsetMin + projected * PX_PER_MIN * 2);
   renderClock();
 }, { passive: false });

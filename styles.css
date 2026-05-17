@@ -137,7 +137,13 @@ body {
   z-index: 0;
 }
 
-.row:hover { filter: brightness(1.04); transition: filter 0.18s; }
+.row { cursor: pointer; }
+.row:hover { filter: brightness(1.05); transition: filter 0.18s; }
+.row:hover .name::after {
+  content: "  ›";
+  opacity: 0.4;
+  font-weight: 400;
+}
 
 .row > * { position: relative; z-index: 1; }
 
