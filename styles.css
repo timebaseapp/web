@@ -117,7 +117,7 @@ body {
 }
 
 .row::before {
-  /* Paper grain only — flutes scrapped. */
+  /* Paper grain. */
   content: "";
   position: absolute;
   inset: 0;
