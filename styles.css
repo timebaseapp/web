@@ -112,19 +112,25 @@ body {
 }
 
 .row::before {
-  /* Two stacked textures via multiple backgrounds:
-     - fluted glass (low-frequency vertical ribs)
-     - paper grain (high-frequency noise) */
+  /* Paper grain only — each row IS one flute, the vertical gradient
+     (lighter top, deeper bottom) creates the single-flute curvature. */
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url('/flutes.png'), url('/grain.png');
-  background-size: 256px 512px, 256px 256px;
-  background-repeat: repeat, repeat;
-  mix-blend-mode: overlay;
-  opacity: 0.55;
+  background-image: url('/grain.png');
+  background-size: 256px 256px;
+  background-repeat: repeat;
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
   pointer-events: none;
   z-index: 0;
+}
+
+/* Top highlight + bottom shadow rim — sells the "single flute" curvature. */
+.row {
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 8px, rgba(255,255,255,0) calc(100% - 8px), rgba(0,0,0,0.16) 100%),
+    linear-gradient(180deg, var(--row-bg-top, var(--row-bg, transparent)) 0%, var(--row-bg-bot, var(--row-bg, transparent)) 100%);
 }
 
 .row > * { position: relative; z-index: 1; }
@@ -132,9 +138,10 @@ body {
 .row:first-child { border-top: none; }
 
 .row .name {
-  font-size: 22px;
-  font-weight: 400;
-  letter-spacing: -0.005em;
+  font-family: "Crimson Text", ui-serif, Georgia, serif;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .row .time {
@@ -313,9 +320,9 @@ dialog::backdrop {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("/flutes.png"), url("/grain.png");
-  background-size: 256px 512px, 256px 256px;
-  background-repeat: repeat, repeat;
+  background-image: url("/grain.png");
+  background-size: 256px 256px;
+  background-repeat: repeat;
   mix-blend-mode: overlay;
   opacity: 0.45;
   pointer-events: none;
@@ -593,9 +600,9 @@ ul.settings li.about a { color: var(--fg-muted); }
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("/flutes.png"), url("/grain.png");
-  background-size: 256px 512px, 256px 256px;
-  background-repeat: repeat, repeat;
+  background-image: url("/grain.png");
+  background-size: 256px 256px;
+  background-repeat: repeat;
   mix-blend-mode: overlay;
   opacity: 0.45;
   pointer-events: none;
