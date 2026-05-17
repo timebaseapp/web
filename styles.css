@@ -59,23 +59,28 @@ html, body {
   min-height: 100vh;
   min-height: 100dvh;
   overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
 }
+
+html { height: 100%; }
+body { height: 100dvh; }
 
 body {
   font-size: 17px;
   line-height: 1.4;
 }
 
-/* Main world clock list */
+/* Main world clock list — full-bleed including under safe areas */
 #clock {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  cursor: ew-resize;
+  cursor: ns-resize;
 }
 
 .row {
@@ -294,7 +299,8 @@ body.scrubbed .row { filter: saturate(0.65); }
   line-height: 1;
 }
 
-#scrub-pill { font-weight: 800; padding: 10px 22px; }
+#scrub-pill { font-weight: 800; padding: 10px 22px; white-space: nowrap; }
+.pill { white-space: nowrap; }
 
 /* Sheets */
 dialog {
@@ -303,9 +309,15 @@ dialog {
   border: none;
   background: transparent;
   max-width: 520px;
-  width: 100%;
+  width: calc(100% - 24px);
   border-radius: 16px;
   color: var(--fg);
+  /* Center via inset on modal dialogs */
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  max-height: calc(100dvh - 24px);
 }
 
 dialog::backdrop {
@@ -777,9 +789,25 @@ ul.settings li.about a { color: var(--fg-muted); }
 .traffic-light.close:focus { outline: none; }
 
 @media (max-width: 600px) {
-  dialog { max-width: 100%; margin: auto 12px 12px; }
+  /* Bottom-sheet pattern: dialogs slide up from the bottom, full-width,
+     rounded only on top — matches native mobile expectations. */
+  dialog {
+    max-width: 100%;
+    width: 100%;
+    max-height: 88dvh;
+    inset: auto 0 0 0;
+    margin: 0;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  dialog .sheet-inner,
+  dialog .about-card {
+    border-radius: 18px 18px 0 0;
+  }
   .row { min-height: 72px; padding: 0 20px; }
   .row .name { font-size: 22px; }
   .row .time { font-size: 28px; }
   .about-wordmark { font-size: 40px; }
+  /* Keep the dock above the home indicator on iOS standalone */
+  #dock { bottom: max(18px, env(safe-area-inset-bottom)); }
 }
