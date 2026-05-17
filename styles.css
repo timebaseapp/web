@@ -112,20 +112,28 @@ body {
 }
 
 .row::before {
-  /* Vertical fluted glass — soft cylindrical ribs spanning the screen. */
+  /* Horizontal fluted glass — ribs run side-to-side, pattern repeats
+     top-to-bottom. Each rib is one cylindrical-lens cycle: highlight near
+     the top, shadow near the bottom, smooth ramps between. 34px period =
+     ~3 flutes per row. */
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url('/flutes.png');
-  background-size: 480px 100%;
-  background-repeat: repeat-x;
-  mix-blend-mode: overlay;
-  opacity: 0.65;
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    rgba(255, 255, 255, 0.28) 8px,
+    transparent 17px,
+    rgba(0, 0, 0, 0.18) 26px,
+    transparent 34px
+  );
+  mix-blend-mode: soft-light;
+  opacity: 0.95;
   pointer-events: none;
   z-index: 0;
 }
 .row::after {
-  /* Paper grain on top of the glass ribs */
+  /* Paper grain on top */
   content: "";
   position: absolute;
   inset: 0;
