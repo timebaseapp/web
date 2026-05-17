@@ -373,7 +373,9 @@ function onPointerMove(e) {
   const dx = e.clientX - dragStart.x;
   const dy = e.clientY - dragStart.y;
   const dist = Math.hypot(dx, dy);
-  if (!dragHappened && dist > 4) dragHappened = true;
+  // 10px threshold so a small wiggle during a click doesn't trip the
+  // scrub and swallow the row's tap-to-open-detail.
+  if (!dragHappened && dist > 10) dragHappened = true;
   if (!dragHappened) return;
   store.scrubOffsetMin = clampScrub(initialScrub + (dx + (-dy)) * PX_PER_MIN);
   renderClock();
