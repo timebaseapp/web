@@ -1,34 +1,57 @@
-# timebase-web
+<div align="center">
 
-The web app for Timebase. Deploys to https://timebase.cc via Cloudflare Pages.
+# Timebase &nbsp;·&nbsp; web
 
-## Stack
+#### *The browser side of [timebase.cc](https://timebase.cc).*
 
-Static HTML + vanilla JS + one CSS file. No build, no bundler, no framework.
+[Visit](https://timebase.cc) &nbsp;·&nbsp; [iOS](https://github.com/timebaseapp/ios) &nbsp;·&nbsp; [@amrith](https://x.com/amrith)
 
-## Local development
+</div>
+
+---
+
+A small world clock that lives in a browser tab. Scroll, drag, or scrub to see what time it'll be anywhere. Same palette, same paper grain, same rhythm as the iOS app — but lighter, instant, link-friendly.
+
+No framework. No build step. Just HTML, one CSS file, one JS file.
+
+## What's where
+
+```
+.
+├── index.html          // the page
+├── app.js              // store · scrub · render
+├── styles.css          // palette · typography · layout
+├── cities.json         // the bundled city list
+├── icon.svg            // app mark
+├── grain.png           // paper texture (shared with iOS)
+├── privacy.html        // Privacy + Terms
+├── support.html        // FAQ + contact
+├── legal.css           // styling for the two pages above
+├── _headers            // Cloudflare Pages cache + security
+└── _redirects          // /terms → /privacy#terms
+```
+
+## Run it
 
 ```sh
-cd web
 python3 -m http.server 8000
 open http://localhost:8000
 ```
 
-## Deploy
+That's the whole local-dev story. Edit, refresh, repeat.
 
-Push `main` to `github.com/timebaseapp/timebase-web`. Cloudflare Pages auto-deploys the directory root.
+## Ship it
 
-Manual deploy with wrangler:
+Push to `main`. Cloudflare Pages auto-deploys to [`timebase.cc`](https://timebase.cc) within a minute. To push manually:
 
 ```sh
 npx wrangler pages deploy . --project-name=timebase
 ```
 
-## Files
+---
 
-- `index.html` — the single page
-- `app.js` — store + scrub + render
-- `styles.css` — palette + type + layout
-- `cities.json` — bundled city list (mirrors `data/cities.json`)
-- `icon.svg` — app icon (bisected circle)
-- `_headers` — Cloudflare Pages headers
+<div align="center">
+
+*Crafted by [@amrith](https://x.com/amrith) in Amsterdam.*
+
+</div>
