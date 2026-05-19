@@ -7,6 +7,10 @@
 <meta name="description" content="A world clock you actually want to open. Drag anywhere to see what time it'll be." />
 <meta name="theme-color" content="#F8F6F2" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)" />
+<!-- Native iOS smart banner so people on iPhone see "open in app" at the top
+     when they land on a shared link. Replace 6770247920 once App Store ID is
+     finalised post-review. -->
+<meta name="apple-itunes-app" content="app-id=6770247920" />
 <link rel="icon" href="/icon.svg" type="image/svg+xml" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -27,8 +31,22 @@
   <button id="about-pill" class="pill icon-pill" type="button" aria-label="About Timebase">
     <span class="info-glyph">i</span>
   </button>
+  <button id="plan-pill" class="pill icon-pill" type="button" aria-label="Plan a time" title="Plan a time across cities (S)">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3.5" y="5" width="17" height="15" rx="2.5"/>
+      <path d="M8 3v4M16 3v4M3.5 10h17"/>
+    </svg>
+  </button>
   <div id="scrub-pill" class="pill" hidden></div>
   <div id="next-pill" class="pill" hidden></div>
+  <button id="share-pill" class="pill icon-pill" type="button" aria-label="Share this view" title="Copy a shareable link (C)">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="12" r="2.5"/>
+      <circle cx="18" cy="6" r="2.5"/>
+      <circle cx="18" cy="18" r="2.5"/>
+      <path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/>
+    </svg>
+  </button>
   <button id="add-pill" class="pill icon-pill" type="button" aria-label="Add city">
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
   </button>
@@ -61,6 +79,65 @@
   </form>
 </dialog>
 
+
+<!-- Plan a time (scheduler) sheet -->
+<dialog id="plan-sheet" aria-label="Plan a time across cities">
+  <form method="dialog" class="sheet-inner plan">
+    <header>
+      <span>Plan a time</span>
+      <button type="submit" value="cancel">Done</button>
+    </header>
+
+    <div class="plan-inputs">
+      <label class="plan-field">
+        <span class="plan-label">DATE</span>
+        <input id="plan-date" type="date" />
+      </label>
+      <label class="plan-field">
+        <span class="plan-label">TIME</span>
+        <input id="plan-time" type="time" />
+      </label>
+      <label class="plan-field plan-anchor">
+        <span class="plan-label">IN</span>
+        <select id="plan-anchor"></select>
+      </label>
+    </div>
+
+    <h3 id="plan-weekend-note" hidden></h3>
+
+    <h3 class="plan-section-label">For everyone</h3>
+    <ul id="plan-results"></ul>
+
+    <footer class="plan-footer">
+      <button type="button" id="plan-now-btn" class="ghost">Use current time</button>
+      <button type="button" id="plan-copy-btn">Copy share link</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Keyboard shortcuts cheat sheet -->
+<dialog id="shortcuts-sheet" aria-label="Keyboard shortcuts">
+  <form method="dialog" class="sheet-inner shortcuts">
+    <header>
+      <span>Keyboard shortcuts</span>
+      <button type="submit" value="cancel">Done</button>
+    </header>
+    <dl class="kbd-list">
+      <dt><kbd>↑</kbd> / <kbd>↓</kbd></dt><dd>Scrub time (15 min)</dd>
+      <dt><kbd>⇧</kbd> + <kbd>↑↓</kbd></dt><dd>Scrub by 1 hour</dd>
+      <dt><kbd>⌘</kbd> + <kbd>↑↓</kbd></dt><dd>Scrub by 1 day</dd>
+      <dt><kbd>Space</kbd> / <kbd>Esc</kbd></dt><dd>Snap to now</dd>
+      <dt><kbd>S</kbd></dt><dd>Plan a time</dd>
+      <dt><kbd>/</kbd></dt><dd>Add a city</dd>
+      <dt><kbd>C</kbd></dt><dd>Copy share link</dd>
+      <dt><kbd>I</kbd></dt><dd>About</dd>
+      <dt><kbd>?</kbd></dt><dd>This card</dd>
+    </dl>
+  </form>
+</dialog>
+
+<!-- Toast for "Link copied" etc -->
+<div id="toast" hidden role="status" aria-live="polite"></div>
 
 <!-- About card — Macintosh-style -->
 <dialog id="about-sheet" aria-label="About Timebase">
@@ -111,6 +188,8 @@
         <a href="/support">Support</a>
         <span aria-hidden="true">·</span>
         <a href="/privacy">Legal</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://apps.apple.com/app/id6770247920" target="_blank" rel="noopener">Get the iOS app</a>
       </div>
       <div class="about-links">
         <a href="https://github.com/timebaseapp" target="_blank" rel="noopener" aria-label="GitHub">
@@ -128,7 +207,7 @@
 <!-- First-run hint -->
 <div id="hint" hidden>
   <p>Drag anywhere to see what time it'll be.</p>
-  <p>Double-tap to return to now.</p>
+  <p>Double-tap to return to now. Press <kbd>?</kbd> for shortcuts.</p>
   <button type="button" id="hint-dismiss">Got it</button>
 </div>
 

@@ -236,6 +236,69 @@ function ensureDefaults() {
   }
 }
 
+/* ───────────── URL state (shareable links) ─────────────
+ * Format:
+ *   /?c=San+Francisco,New+York,London,Bengaluru   — cities, in order
+ *   &h=San+Francisco                              — home city (optional)
+ *   &t=2026-05-21T10:00                           — picked meeting time (optional, opens plan sheet)
+ *   &anchor=London                                — anchor city for the meeting time (optional, defaults to home)
+ *
+ * Cities are referenced by name. If a name in the URL isn't in CITY_DB the
+ * entry is silently skipped — graceful degradation matters for shared links.
+ */
+function readUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  const c = params.get('c');
+  if (!c) return null;
+  const names = c.split(',').map(s => s.trim()).filter(Boolean);
+  const cities = names
+    .map(n => CITY_DB.find(x => x.name.toLowerCase() === n.toLowerCase()))
+    .filter(Boolean)
+    .map(x => ({ ...x, id: cityId(x) }));
+  if (cities.length === 0) return null;
+
+  const homeName = params.get('h');
+  const homeId = homeName
+    ? cities.find(x => x.name.toLowerCase() === homeName.toLowerCase())?.id
+    : cities[0].id;
+
+  return {
+    cities,
+    homeId,
+    planTime: params.get('t') || null,
+    planAnchor: params.get('anchor') || null,
+  };
+}
+function shareUrl({ includeTime = false } = {}) {
+  const u = new URL(window.location.origin + '/');
+  // Use the LIST order, not the sorted order — order is part of the user's intent.
+  u.searchParams.set('c', store.cities.map(c => c.name).join(','));
+  const home = store.cities.find(x => x.id === store.homeId);
+  if (home) u.searchParams.set('h', home.name);
+  if (includeTime && planState.dateStr && planState.timeStr && planState.anchorId) {
+    u.searchParams.set('t', `${planState.dateStr}T${planState.timeStr}`);
+    const anchor = store.cities.find(x => x.id === planState.anchorId);
+    if (anchor) u.searchParams.set('anchor', anchor.name);
+  }
+  // Use unescaped commas for readability — spec allows them in query strings.
+  return u.toString().replace(/%2C/g, ',');
+}
+
+async function copyShareUrl(opts) {
+  const url = shareUrl(opts);
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast(opts && opts.includeTime ? 'Plan link copied' : 'Link copied');
+  } catch {
+    // Fallback: open share sheet on mobile / select-and-prompt on desktop.
+    if (navigator.share) {
+      try { await navigator.share({ url, title: 'Timebase' }); } catch {}
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+}
+
 function cityId(c) { return `${c.name}|${c.tz}`; }
 
 // All cities (including home) sorted by UTC offset ascending — colors flow
@@ -644,6 +707,202 @@ document.getElementById('remove-btn').addEventListener('click', () => {
 
 // (Settings live inside the About card — see openAboutCard above.)
 
+/* ───────────── Plan a time (scheduler) ───────────── */
+
+const planSheet     = document.getElementById('plan-sheet');
+const planPill      = document.getElementById('plan-pill');
+const planDateInput = document.getElementById('plan-date');
+const planTimeInput = document.getElementById('plan-time');
+const planAnchorEl  = document.getElementById('plan-anchor');
+const planResultsEl = document.getElementById('plan-results');
+const planWeekendEl = document.getElementById('plan-weekend-note');
+const planCopyBtn   = document.getElementById('plan-copy-btn');
+const planNowBtn    = document.getElementById('plan-now-btn');
+
+// Sheet state — kept locally so the URL roundtrip can read it.
+const planState = {
+  dateStr: '',         // 'YYYY-MM-DD'
+  timeStr: '',         // 'HH:MM' (24h, in anchor's tz)
+  anchorId: null,
+};
+
+function openPlanSheet(opts) {
+  rebuildAnchorOptions();
+  if (opts && opts.fromUrl && opts.timeStr) {
+    // URL provided a time — split it.
+    const [d, t] = opts.timeStr.split('T');
+    planState.dateStr = d;
+    planState.timeStr = (t || '').slice(0, 5);
+    if (opts.anchorName) {
+      const a = store.cities.find(x => x.name.toLowerCase() === opts.anchorName.toLowerCase());
+      if (a) planState.anchorId = a.id;
+    }
+  }
+  if (!planState.anchorId) planState.anchorId = store.homeId || store.cities[0]?.id;
+  if (!planState.dateStr || !planState.timeStr) seedDefaultTime();
+
+  planDateInput.value = planState.dateStr;
+  planTimeInput.value = planState.timeStr;
+  planAnchorEl.value  = planState.anchorId || '';
+  renderPlanResults();
+  planSheet.showModal();
+}
+function seedDefaultTime() {
+  // Default = next half-hour, in the anchor city's local time.
+  const anchor = store.cities.find(x => x.id === planState.anchorId);
+  if (!anchor) return;
+  const ms = Date.now();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: anchor.tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(ms);
+  const m = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+  // Round up to the next 30-minute mark.
+  let H = parseInt(m.hour, 10), M = parseInt(m.minute, 10);
+  if (M < 30) M = 30; else { M = 0; H = (H + 1) % 24; }
+  planState.dateStr = `${m.year}-${m.month}-${m.day}`;
+  planState.timeStr = `${String(H).padStart(2, '0')}:${String(M).padStart(2, '0')}`;
+}
+function rebuildAnchorOptions() {
+  planAnchorEl.replaceChildren(...store.cities.map(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    if (c.id === store.homeId) opt.textContent = `${c.name}  (home)`;
+    return opt;
+  }));
+}
+
+// Convert "YYYY-MM-DD HH:MM in TZ" → absolute ms. This is the
+// inverse of formatToParts: we don't have a clean Intl API for it, so
+// we use the standard offset trick — make a Date in UTC, find what
+// it'd appear as in tz, adjust by the delta. Within DST gaps the
+// result picks the closest non-ambiguous moment.
+function localToAbsoluteMs(dateStr, timeStr, tz) {
+  if (!dateStr || !timeStr) return null;
+  const [Y, M, D] = dateStr.split('-').map(Number);
+  const [h, m]    = timeStr.split(':').map(Number);
+  if (![Y, M, D, h, m].every(Number.isFinite)) return null;
+  // 1. Build a UTC Date with the requested wall-clock components.
+  const utcMs = Date.UTC(Y, M - 1, D, h, m, 0);
+  // 2. Read what that absolute moment LOOKS LIKE in the target tz.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(utcMs);
+  const o = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+  const localMsAtUtc = Date.UTC(+o.year, +o.month - 1, +o.day, +o.hour, +o.minute, +o.second);
+  // 3. The offset between target-tz wall-clock and UTC at that moment.
+  const offsetMs = localMsAtUtc - utcMs;
+  // 4. Subtract that offset from the desired wall-clock-as-utc to get the
+  //    real absolute moment.
+  return utcMs - offsetMs;
+}
+
+// Vibe buckets — mirror the iOS implementation.
+function vibeFor(hourLocal) {
+  if (hourLocal === 23 || (hourLocal >= 0 && hourLocal < 6)) {
+    return { label: 'asleep', glyph: '🌙', klass: 'asleep' };
+  }
+  if (hourLocal >= 6 && hourLocal < 9)  return { label: 'waking up',   glyph: '☕', klass: 'waking' };
+  if (hourLocal >= 9 && hourLocal < 18) return { label: 'working',     glyph: '☀',  klass: 'working' };
+  return { label: 'winding down', glyph: '🌇', klass: 'winding' };
+}
+
+function renderPlanResults() {
+  const anchor = store.cities.find(x => x.id === planState.anchorId);
+  if (!anchor) { planResultsEl.replaceChildren(); return; }
+  const absMs = localToAbsoluteMs(planState.dateStr, planState.timeStr, anchor.tz);
+  if (absMs == null) { planResultsEl.replaceChildren(); return; }
+
+  // Weekend / heads-up note (in anchor tz).
+  const dow = new Intl.DateTimeFormat('en-US', { timeZone: anchor.tz, weekday: 'long' }).format(absMs);
+  if (dow === 'Saturday' || dow === 'Sunday') {
+    planWeekendEl.hidden = false;
+    planWeekendEl.textContent = `· ${dow} — heads up, it's the weekend`;
+  } else {
+    planWeekendEl.hidden = true;
+  }
+
+  const items = orderedCities().map(c => {
+    const local = formatTime(absMs, c.tz);
+    const h = Math.floor(formatHourFraction(absMs, c.tz));
+    const v = vibeFor(h);
+    const homeKey = anchor.tz ? dayKey(absMs, anchor.tz) : null;
+    const cKey = dayKey(absMs, c.tz);
+    const offsetLabel = (homeKey && cKey !== homeKey)
+      ? ` ${cKey > homeKey ? '+1d' : '−1d'}`
+      : '';
+    return { c, local, offsetLabel, v };
+  });
+
+  planResultsEl.replaceChildren(...items.map(({ c, local, offsetLabel, v }) => {
+    const li = document.createElement('li');
+    const isHome = c.id === store.homeId;
+    const isAnchor = c.id === planState.anchorId;
+    if (isHome) li.classList.add('is-home');
+    li.innerHTML = `
+      <span class="city">${isAnchor ? '<span aria-hidden="true">📍</span>' : ''}${c.name}</span>
+      <span class="pt-time">${local}${offsetLabel}</span>
+      <span class="vibe ${v.klass}">${v.glyph} ${v.label}</span>
+    `;
+    return li;
+  }));
+}
+
+planPill.addEventListener('click', () => openPlanSheet());
+planDateInput.addEventListener('input', () => { planState.dateStr = planDateInput.value; renderPlanResults(); });
+planTimeInput.addEventListener('input', () => { planState.timeStr = planTimeInput.value; renderPlanResults(); });
+planAnchorEl.addEventListener('change', () => { planState.anchorId = planAnchorEl.value; renderPlanResults(); });
+planNowBtn.addEventListener('click', () => { seedDefaultTime(); planDateInput.value = planState.dateStr; planTimeInput.value = planState.timeStr; renderPlanResults(); });
+planCopyBtn.addEventListener('click', () => copyShareUrl({ includeTime: true }));
+
+/* ───────────── Share + shortcuts cheat sheet ───────────── */
+
+const sharePill = document.getElementById('share-pill');
+const shortcutsSheet = document.getElementById('shortcuts-sheet');
+sharePill.addEventListener('click', () => copyShareUrl({ includeTime: false }));
+
+/* ───────────── Toast ───────────── */
+
+const toast = document.getElementById('toast');
+let toastTimer = null;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.hidden = false;
+  // Force reflow so the transition fires.
+  void toast.offsetWidth;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => { toast.hidden = true; }, 220);
+  }, 1600);
+}
+
+/* ───────────── Extended keyboard shortcuts ───────────── */
+
+document.addEventListener('keydown', e => {
+  // Don't intercept when an input is focused.
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  // If any dialog is open, let Escape close it (already wired) and skip the rest.
+  if (document.querySelector('dialog[open]')) return;
+
+  // Modifier combos pass through to the arrow-key handler defined earlier.
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  const k = e.key.toLowerCase();
+  if (k === 's') { e.preventDefault(); openPlanSheet(); }
+  else if (k === '/') { e.preventDefault(); openAddSheet(); }
+  else if (k === 'c') { e.preventDefault(); copyShareUrl({ includeTime: false }); }
+  else if (k === 'i') { e.preventDefault(); openAboutCard(); }
+  else if (k === '?') { e.preventDefault(); shortcutsSheet.showModal(); }
+});
+
 // First-run hint
 const hint = document.getElementById('hint');
 document.getElementById('hint-dismiss').addEventListener('click', () => {
@@ -660,12 +919,31 @@ function maybeShowHint() {
 async function init() {
   loadState();
   await loadCityDB();
-  ensureDefaults();
+
+  // Shared-link state has highest priority — if the URL specifies cities,
+  // they override what's in localStorage for THIS session. We deliberately
+  // skip saveState() so the user's own saved list isn't wiped when they
+  // open a friend's shared link. Any subsequent mutation (add, remove,
+  // make-home) DOES save, which is the natural "I want this to be my
+  // default now" gesture.
+  const urlState = readUrlState();
+  if (urlState) {
+    store.cities = urlState.cities;
+    store.homeId = urlState.homeId;
+  } else {
+    ensureDefaults();
+  }
+
   applyTheme();
   renderClock();
   maybeShowHint();
   setInterval(renderClock, 1000);
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => renderClock());
+
+  // If the link includes a meeting time, open the planner with it.
+  if (urlState && urlState.planTime) {
+    openPlanSheet({ fromUrl: true, timeStr: urlState.planTime, anchorName: urlState.planAnchor });
+  }
 }
 
 init();
