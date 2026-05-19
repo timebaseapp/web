@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Privacy Policy — Timebase</title>
+<meta name="description" content="Timebase does not collect, store, or sell your data." />
+<meta name="theme-color" content="#F8F6F2" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/legal.css" />
+</head>
+<body>
+
+<main>
+  <a class="wordmark" href="/">Timebase</a>
+  <div class="tagline">A QUIETER WAY TO THINK ACROSS TIMEZONES</div>
+
+  <div class="eyebrow">Privacy Policy</div>
+  <h1>Your data stays yours.</h1>
+  <p class="muted">Last updated: May 19, 2026</p>
+
+  <p>Timebase is designed to keep working entirely on your device. We don't run servers. We don't have a user database. We don't have an analytics pipeline. We don't have ad partners. There is no signup and no account.</p>
+
+  <p>This page explains the small set of things the app touches, why it touches them, and where the data lives. If anything here is unclear, please reach out — contact info is at the bottom.</p>
+
+  <h2>What we collect from you</h2>
+  <p><strong>Nothing.</strong> Timebase does not transmit any personal data to any server we control. We do not log your IP address, your device identifier, or anything about how you use the app.</p>
+
+  <h2>What the app stores on your device</h2>
+  <p>Timebase saves a small amount of state locally so the app works between launches:</p>
+  <ul>
+    <li>The list of cities you've added and which one is "home"</li>
+    <li>Your display preferences (24-hour, light/dark mode, app icon)</li>
+    <li>The last manually-picked app icon (so auto-rotate can be restored from it)</li>
+    <li>A copy of your upcoming calendar events (only if you've granted Calendar access — see below)</li>
+  </ul>
+  <p>This data is stored in Apple's standard on-device storage (<code>UserDefaults</code> + an App Group container shared with the home-screen widgets) and never leaves your device unless you choose to sync it (see iCloud below).</p>
+
+  <h2>iCloud sync</h2>
+  <p>If you're signed into iCloud, Timebase uses Apple's iCloud Key-Value Store to sync the same data above across your Apple devices. This sync happens between your devices and Apple's iCloud — Timebase has no servers in the middle, no copy on our side, and no way to read your iCloud data.</p>
+  <p>To stop syncing, sign out of iCloud or disable Timebase under Settings → Apple ID → iCloud → Apps Using iCloud. There's nothing to delete on our end because there's nothing on our end.</p>
+
+  <h2>Calendar access</h2>
+  <p>The "Up Next" countdown screen and the Live Activity feature need to read your upcoming events. iOS will ask for permission the first time you tap into either. If you grant permission:</p>
+  <ul>
+    <li>Timebase reads upcoming events from your system Calendar via Apple's <code>EventKit</code> framework — local API only, never network</li>
+    <li>It caches the events temporarily so home-screen widgets can show the same data without re-asking permission</li>
+    <li>It does not send the events anywhere, and it does not modify or delete any of your events</li>
+  </ul>
+  <p>You can revoke access at any time in <strong>Settings → Privacy &amp; Security → Calendars → Timebase</strong>, or in Timebase's own Settings via the <em>Disconnect Calendar</em> shortcut. Once revoked, the cached events are cleared the next time you reset the app.</p>
+
+  <h2>Weather (WeatherKit)</h2>
+  <p>When you tap a city, Timebase requests current weather conditions from Apple's WeatherKit service. Apple receives the geographic coordinates of the city you tapped, anonymized to Apple's standard WeatherKit terms. Timebase itself does not see or store any data exchanged in this request.</p>
+
+  <h2>Location</h2>
+  <p>During onboarding, Timebase may ask for your approximate location so it can suggest your home city. If you grant access, the coordinates are used only to find the closest city in the bundled database — they are not saved, transmitted, or used for anything else.</p>
+
+  <h2>Siri &amp; Shortcuts</h2>
+  <p>Timebase exposes a small set of App Intents (e.g. <em>"What time is it in Tokyo?"</em>). When you invoke them, iOS processes the request locally and passes the result to Siri. No request leaves your device.</p>
+
+  <h2>Analytics, ads, and tracking</h2>
+  <p><strong>None.</strong> Timebase does not include any analytics SDK, advertising SDK, crash reporter, or third-party tracker. We do not know if you opened the app today. We do not know which cities you added. We do not know if you ever tap "Plan a meeting." We believe this is how a clock app should work.</p>
+
+  <h2>Children</h2>
+  <p>Timebase is rated 4+ and is appropriate for all audiences, but it isn't designed specifically for children. We don't knowingly collect data from anyone, including children — see "What we collect from you" above.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If we ever change anything here, we'll update the "Last updated" date at the top. We'll also call out anything material in the app's release notes.</p>
+
+  <h2>Contact</h2>
+  <p>Questions, feedback, or concerns? Email <a href="mailto:hello@timebase.cc">hello@timebase.cc</a>.</p>
+
+  <div class="nav">
+    <a href="/">Home</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="/support">Support</a>
+  </div>
+</main>
+
+</body>
+</html>
