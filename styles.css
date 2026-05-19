@@ -746,6 +746,29 @@ ul.settings li.about a { color: var(--fg-muted); }
   background: rgba(128,128,128,0.10);
 }
 
+.about-legal {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+.about-legal a {
+  color: var(--fg-muted);
+  text-decoration: none;
+  border-bottom: 0.5px solid transparent;
+  padding-bottom: 1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.about-legal a:hover {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+}
+
 /* Traffic lights — macOS-style window controls. Red closes; yellow + green
    are decorative homage. Symbols appear on hover of the group. */
 .traffic-lights {

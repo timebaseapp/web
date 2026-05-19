@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Privacy Policy — Timebase</title>
-<meta name="description" content="Timebase does not collect, store, or sell your data." />
+<title>Privacy &amp; Terms — Timebase</title>
+<meta name="description" content="Timebase does not collect, store, or sell your data. Here's the full privacy policy and terms of use." />
 <meta name="theme-color" content="#F8F6F2" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)" />
 <link rel="icon" href="/icon.svg" type="image/svg+xml" />
@@ -20,18 +20,27 @@
   <a class="wordmark" href="/">Timebase</a>
   <div class="tagline">A QUIETER WAY TO THINK ACROSS TIMEZONES</div>
 
-  <div class="eyebrow">Privacy Policy</div>
-  <h1>Your data stays yours.</h1>
+  <div class="eyebrow">Privacy &amp; Terms</div>
+  <h1>The legal bit, kept short.</h1>
   <p class="muted">Last updated: May 19, 2026</p>
+
+  <p>Timebase is a small app made by one person. There's no helpdesk, no analytics, no servers we run. This page covers (1) what the app does with your data — short version: nothing leaves your device — and (2) the standard terms that apply when you use it. If anything here is unclear, email <a href="mailto:hi@amrith.co">hi@amrith.co</a>.</p>
+
+  <p class="muted"><a href="#privacy">Jump to Privacy</a> · <a href="#terms">Jump to Terms</a></p>
+
+  <hr />
+
+  <!-- ============================================================== -->
+  <!--                         PRIVACY POLICY                          -->
+  <!-- ============================================================== -->
+  <h2 id="privacy">Privacy Policy</h2>
 
   <p>Timebase is designed to keep working entirely on your device. We don't run servers. We don't have a user database. We don't have an analytics pipeline. We don't have ad partners. There is no signup and no account.</p>
 
-  <p>This page explains the small set of things the app touches, why it touches them, and where the data lives. If anything here is unclear, please reach out — contact info is at the bottom.</p>
-
-  <h2>What we collect from you</h2>
+  <h3>What we collect from you</h3>
   <p><strong>Nothing.</strong> Timebase does not transmit any personal data to any server we control. We do not log your IP address, your device identifier, or anything about how you use the app.</p>
 
-  <h2>What the app stores on your device</h2>
+  <h3>What the app stores on your device</h3>
   <p>Timebase saves a small amount of state locally so the app works between launches:</p>
   <ul>
     <li>The list of cities you've added and which one is "home"</li>
@@ -41,11 +50,11 @@
   </ul>
   <p>This data is stored in Apple's standard on-device storage (<code>UserDefaults</code> + an App Group container shared with the home-screen widgets) and never leaves your device unless you choose to sync it (see iCloud below).</p>
 
-  <h2>iCloud sync</h2>
+  <h3>iCloud sync</h3>
   <p>If you're signed into iCloud, Timebase uses Apple's iCloud Key-Value Store to sync the same data above across your Apple devices. This sync happens between your devices and Apple's iCloud — Timebase has no servers in the middle, no copy on our side, and no way to read your iCloud data.</p>
   <p>To stop syncing, sign out of iCloud or disable Timebase under Settings → Apple ID → iCloud → Apps Using iCloud. There's nothing to delete on our end because there's nothing on our end.</p>
 
-  <h2>Calendar access</h2>
+  <h3>Calendar access</h3>
   <p>The "Up Next" countdown screen and the Live Activity feature need to read your upcoming events. iOS will ask for permission the first time you tap into either. If you grant permission:</p>
   <ul>
     <li>Timebase reads upcoming events from your system Calendar via Apple's <code>EventKit</code> framework — local API only, never network</li>
@@ -54,31 +63,71 @@
   </ul>
   <p>You can revoke access at any time in <strong>Settings → Privacy &amp; Security → Calendars → Timebase</strong>, or in Timebase's own Settings via the <em>Disconnect Calendar</em> shortcut. Once revoked, the cached events are cleared the next time you reset the app.</p>
 
-  <h2>Weather (WeatherKit)</h2>
+  <h3>Weather (WeatherKit)</h3>
   <p>When you tap a city, Timebase requests current weather conditions from Apple's WeatherKit service. Apple receives the geographic coordinates of the city you tapped, anonymized to Apple's standard WeatherKit terms. Timebase itself does not see or store any data exchanged in this request.</p>
 
-  <h2>Location</h2>
+  <h3>Location</h3>
   <p>During onboarding, Timebase may ask for your approximate location so it can suggest your home city. If you grant access, the coordinates are used only to find the closest city in the bundled database — they are not saved, transmitted, or used for anything else.</p>
 
-  <h2>Siri &amp; Shortcuts</h2>
+  <h3>Siri &amp; Shortcuts</h3>
   <p>Timebase exposes a small set of App Intents (e.g. <em>"What time is it in Tokyo?"</em>). When you invoke them, iOS processes the request locally and passes the result to Siri. No request leaves your device.</p>
 
-  <h2>Analytics, ads, and tracking</h2>
+  <h3>Analytics, ads, and tracking</h3>
   <p><strong>None.</strong> Timebase does not include any analytics SDK, advertising SDK, crash reporter, or third-party tracker. We do not know if you opened the app today. We do not know which cities you added. We do not know if you ever tap "Plan a meeting." We believe this is how a clock app should work.</p>
 
-  <h2>Children</h2>
+  <h3>Children</h3>
   <p>Timebase is rated 4+ and is appropriate for all audiences, but it isn't designed specifically for children. We don't knowingly collect data from anyone, including children — see "What we collect from you" above.</p>
 
-  <h2>Changes to this policy</h2>
+  <h3>Changes to this policy</h3>
   <p>If we ever change anything here, we'll update the "Last updated" date at the top. We'll also call out anything material in the app's release notes.</p>
 
-  <h2>Contact</h2>
-  <p>Questions, feedback, or concerns? Email <a href="mailto:hello@timebase.cc">hello@timebase.cc</a>.</p>
+  <hr />
+
+  <!-- ============================================================== -->
+  <!--                          TERMS OF USE                           -->
+  <!-- ============================================================== -->
+  <h2 id="terms">Terms of Use</h2>
+
+  <p>By downloading or using Timebase, you agree to the terms below. They're written to be readable, but they are the terms.</p>
+
+  <h3>License</h3>
+  <p>You get a free, non-exclusive, revocable license to install and use Timebase on Apple devices you own or control, for personal, non-commercial use. Apple's App Store standard end-user license agreement (the EULA) also applies in addition to these terms — you can read it at <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/">apple.com/legal/internet-services/itunes/dev/stdeula</a>.</p>
+
+  <h3>What you may not do</h3>
+  <ul>
+    <li>Reverse engineer, decompile, disassemble, or attempt to derive the source code of the app, except where applicable law expressly allows it.</li>
+    <li>Modify, adapt, or create derivative works of the app.</li>
+    <li>Rent, lease, sublicense, sell, or otherwise transfer the app to anyone else.</li>
+    <li>Remove or alter any proprietary notices, branding, or marks.</li>
+    <li>Use the app for any unlawful purpose or in a way that violates these terms.</li>
+  </ul>
+
+  <h3>Your data</h3>
+  <p>Timebase does not collect or transmit your personal data. See the privacy policy above for the full picture. The cities, settings, and calendar events the app uses stay on your device or sync via your own iCloud account.</p>
+
+  <h3>Third-party services</h3>
+  <p>Timebase uses Apple's WeatherKit to fetch weather data. Weather information is supplied by Apple and other data sources — see <a href="https://developer.apple.com/weatherkit/data-source-attribution/">Apple's attribution page</a> for details. The accuracy and availability of weather data is not under our control.</p>
+
+  <h3>No warranty</h3>
+  <p>Timebase is provided "as is," without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the app will be uninterrupted, error-free, or that defects will be corrected.</p>
+  <p>While we do our best to render correct local times, including handling daylight saving and timezone changes, you should not rely on the app alone for time-critical or safety-critical decisions.</p>
+
+  <h3>Limitation of liability</h3>
+  <p>To the maximum extent permitted by law, Timebase and its developer will not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits, data, or goodwill, arising from your use of or inability to use the app.</p>
+  <p>Where liability cannot be excluded under applicable law, our total liability for any claim arising from these terms or your use of Timebase is limited to the amount you paid for the app (which, for Timebase v1, is zero).</p>
+
+  <h3>Changes</h3>
+  <p>If we update these terms, the "Last updated" date at the top will change. Material changes will be called out in the app's release notes. Continued use of the app after a change constitutes acceptance of the updated terms.</p>
+
+  <h3>Governing law</h3>
+  <p>These terms are governed by the laws of the Netherlands, without regard to its conflict of law principles. Any dispute that cannot be resolved informally will be subject to the exclusive jurisdiction of the competent courts of Amsterdam, the Netherlands. If you are a consumer in the EU or UK, mandatory consumer-protection rules of your country of residence also apply.</p>
+
+  <h3>Contact</h3>
+  <p>Questions about either section? Email <a href="mailto:hi@amrith.co">hi@amrith.co</a>.</p>
 
   <div class="nav">
     <a href="/">Home</a>
-    <a href="/privacy">Privacy</a>
-    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy &amp; Terms</a>
     <a href="/support">Support</a>
   </div>
 </main>
