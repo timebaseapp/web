@@ -2,9 +2,9 @@
 
 # Timebase &nbsp;·&nbsp; web
 
-#### *The browser side of [timebase.cc](https://timebase.cc).*
+#### *The browser side of [timebase.me](https://timebase.me).*
 
-[Visit](https://timebase.cc) &nbsp;·&nbsp; [iOS](https://github.com/timebaseapp/ios) &nbsp;·&nbsp; [@amrith](https://x.com/amrith)
+[Visit](https://timebase.me) &nbsp;·&nbsp; [iOS](https://github.com/timebaseapp/ios) &nbsp;·&nbsp; [@amrith](https://x.com/amrith)
 
 </div>
 
@@ -42,7 +42,7 @@ That's the whole local-dev story. Edit, refresh, repeat.
 
 ## Ship it
 
-Push to `main`. Cloudflare Pages auto-deploys to [`timebase.cc`](https://timebase.cc) within a minute. To push manually:
+Push to `main`. Cloudflare Pages auto-deploys to [`timebase.me`](https://timebase.me) within a minute. To push manually:
 
 ```sh
 npx wrangler pages deploy . --project-name=timebase
