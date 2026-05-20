@@ -1,0 +1,7 @@
+# Timebase — timebase.me
+# Search crawlers and answer-engine bots are welcome.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://timebase.me/sitemap.xml

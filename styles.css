@@ -101,46 +101,20 @@ body {
   isolation: isolate;
 }
 
-.row::after {
-  /* Paper-grain texture overlay. Two layers (soft-light + overlay) so the
-     texture reads on both light and dark rows. */
+.row::before, .row::after {
+  /* Paper-grain texture — two layers (soft-light + overlay) so it reads on
+     both light and dark rows. Opacities match the iOS CityRow grain. */
   content: "";
   position: absolute;
   inset: 0;
   background-image: url('/grain.png');
   background-size: 256px 256px;
   background-repeat: repeat;
-  mix-blend-mode: overlay;
-  opacity: 0.55;
   pointer-events: none;
   z-index: 0;
 }
-
-.row::before {
-  /* Paper grain. */
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url('/grain.png');
-  background-size: 256px 256px;
-  background-repeat: repeat;
-  mix-blend-mode: soft-light;
-  opacity: 0.9;
-  pointer-events: none;
-  z-index: 0;
-}
-.row::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url('/grain.png');
-  background-size: 256px 256px;
-  background-repeat: repeat;
-  mix-blend-mode: overlay;
-  opacity: 0.4;
-  pointer-events: none;
-  z-index: 0;
-}
+.row::before { mix-blend-mode: soft-light; opacity: 0.95; }
+.row::after  { mix-blend-mode: overlay;   opacity: 0.35; }
 
 .row { cursor: pointer; }
 .row:hover { filter: brightness(1.05); transition: filter 0.18s; }
@@ -182,7 +156,8 @@ body {
   align-self: center;
 }
 
-body.scrubbed .row { filter: saturate(0.65); }
+/* Scrubbed rows are desaturated in OKLCH space (chroma ×0.7) during render —
+   see app.js — to match iOS, instead of an sRGB `saturate()` filter. */
 
 /* Bottom dock of pills */
 #dock {
@@ -553,8 +528,6 @@ dialog::backdrop {
   text-transform: uppercase;
   color: var(--fg-muted);
 }
-.sheet-inner.plan input[type="date"],
-.sheet-inner.plan input[type="time"],
 .sheet-inner.plan select {
   background: transparent;
   border: none;
@@ -567,14 +540,27 @@ dialog::backdrop {
   appearance: none;
   -webkit-appearance: none;
 }
-.sheet-inner.plan input[type="date"]::-webkit-calendar-picker-indicator,
-.sheet-inner.plan input[type="time"]::-webkit-calendar-picker-indicator {
-  opacity: 0.6;
+.sheet-inner.plan select:focus { outline: none; }
+
+/* DATE / TIME are buttons that open the on-brand picker popovers. */
+.plan-field-btn {
+  text-align: left;
   cursor: pointer;
+  color: var(--fg);
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: background 0.15s ease, outline-color 0.12s ease;
 }
-.sheet-inner.plan input:focus,
-.sheet-inner.plan select:focus {
-  outline: none;
+.plan-field-btn:hover { background: rgba(128, 128, 128, 0.14); }
+.plan-field-btn.is-open {
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1.5px;
+}
+.plan-field-value {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  min-height: 22px;
 }
 .sheet-inner.plan .plan-section-label {
   margin-top: 20px;
@@ -647,6 +633,176 @@ dialog::backdrop {
   border: 0.5px solid var(--rule);
 }
 
+/* "Check with them" confirms inline — the button itself morphs, since a
+   bottom toast would render *under* the modal sheet's top layer. */
+#plan-copy-btn {
+  transition: background 0.2s ease, color 0.2s ease;
+}
+#plan-copy-btn.is-copied {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* ───── Date / time picker popovers ─────
+   Top-layer popovers anchored to the DATE / TIME fields — never clipped by
+   the sheet, never fall through to the OS's unstyled native picker. */
+
+[popover].tb-pop {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: 286px;
+  padding: 14px;
+  background: var(--sheet-bg);
+  color: var(--fg);
+  border: 0.5px solid var(--rule);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.30), 0 2px 6px rgba(0,0,0,0.14);
+  isolation: isolate;
+  overflow: hidden;
+}
+[popover].tb-pop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/grain.png");
+  background-size: 256px 256px;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+[popover].tb-pop > * { position: relative; z-index: 1; }
+[popover].tb-pop:popover-open {
+  animation: welcome-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Calendar */
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.cal-month {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cal-nav {
+  width: 28px;
+  height: 28px;
+  border: 0.5px solid var(--rule);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.cal-nav:hover { background: rgba(128, 128, 128, 0.12); }
+.cal-dow-row, .cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.cal-dow-row { margin-bottom: 4px; }
+.cal-dow-row span {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  text-align: center;
+}
+.cal-grid { gap: 2px; }
+.cal-day {
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--fg);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.cal-day:hover { background: rgba(128, 128, 128, 0.14); }
+.cal-day.is-other { opacity: 0.32; }
+.cal-day.is-today::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.cal-day.is-selected {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* Time picker */
+.tp-ampm {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tp-ampm button {
+  flex: 1;
+  height: 32px;
+  border: 0.5px solid var(--rule);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.tp-ampm button.is-selected {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.tp-label {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin: 0 0 6px;
+}
+.tp-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.tp-grid:last-child { margin-bottom: 0; }
+.tp-cell {
+  height: 30px;
+  border: none;
+  border-radius: 7px;
+  background: rgba(128, 128, 128, 0.10);
+  color: var(--fg);
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 12px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.tp-cell:hover { background: rgba(128, 128, 128, 0.20); }
+.tp-cell.is-selected {
+  background: var(--accent);
+  color: var(--bg);
+}
+
 /* ───── Shortcuts cheat sheet ───── */
 
 .sheet-inner.shortcuts .kbd-list {
@@ -667,7 +823,7 @@ dialog::backdrop {
   font-size: 15px;
   color: var(--fg);
 }
-.sheet-inner kbd {
+kbd {
   font-family: ui-monospace, "SF Mono", monospace;
   font-size: 12px;
   background: rgba(128,128,128,0.15);
@@ -679,47 +835,6 @@ dialog::backdrop {
   text-align: center;
   font-weight: 500;
   color: var(--fg);
-}
-
-/* ───── Toast (link copied etc) ───── */
-
-#toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(max(24px, env(safe-area-inset-bottom)) + 70px);
-  transform: translateX(-50%) translateY(8px);
-  background: var(--fg);
-  color: var(--bg);
-  padding: 10px 18px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  z-index: 100;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.18s ease, transform 0.22s ease;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-}
-#toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Native date / time pickers in plan sheet — match dark mode */
-@media (prefers-color-scheme: dark) {
-  .sheet-inner.plan input[type="date"],
-  .sheet-inner.plan input[type="time"] {
-    color-scheme: dark;
-  }
-}
-:root[data-theme="light"] .sheet-inner.plan input[type="date"],
-:root[data-theme="light"] .sheet-inner.plan input[type="time"] {
-  color-scheme: light;
-}
-:root[data-theme="dark"] .sheet-inner.plan input[type="date"],
-:root[data-theme="dark"] .sheet-inner.plan input[type="time"] {
-  color-scheme: dark;
 }
 
 /* Settings list */
@@ -767,38 +882,123 @@ ul.settings li.about p { margin: 4px 0; }
 ul.settings li.about .muted { color: var(--fg-muted); font-size: 13px; }
 ul.settings li.about a { color: var(--fg-muted); }
 
-/* First-run hint */
-#hint {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(8px);
+/* ───── First-run welcome ─────
+   A small macOS-style window that reuses the About card chrome (.about-card:
+   traffic lights, grain, wordmark). The backdrop is a *thin* translucent
+   gradient — not an opaque dim — so the real palette breathes behind it. */
+
+#welcome-sheet { max-width: 420px; }
+#welcome-sheet::backdrop {
+  background: linear-gradient(180deg, rgba(10,11,18,0.16), rgba(10,11,18,0.42));
+  backdrop-filter: blur(2px);
+  animation: welcome-backdrop 0.3s ease;
+}
+@keyframes welcome-backdrop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes welcome-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.965); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);     }
+}
+#welcome-sheet[open] .welcome {
+  animation: welcome-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.welcome { padding-bottom: 22px; }
+
+.welcome-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.welcome-step[hidden] { display: none; }
+
+.welcome .about-wordmark { margin-top: 8px; }
+
+.welcome-heading {
+  font-family: "Crimson Text", ui-serif, Georgia, serif;
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  margin: 16px 0 2px;
+  color: var(--fg);
+}
+
+.welcome-text {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg);
+  margin: 8px 0 0;
+  max-width: 30ch;
+}
+
+.welcome-foot {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin: 14px 0 0;
+}
+
+.welcome-glyph {
+  width: 76px;
+  height: 76px;
+  margin: 22px 0 2px;
+  border: 0.5px solid rgba(128, 128, 128, 0.45);
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  z-index: 20;
-  padding: 24px;
-  text-align: center;
+  color: var(--fg);
 }
-#hint[hidden] { display: none; }
-#hint p {
-  color: #fff;
-  font-size: 22px;
-  font-weight: 400;
-  max-width: 380px;
-  margin: 0 0 8px;
-  line-height: 1.4;
+.welcome-glyph.is-animated svg {
+  animation: welcome-nudge 1.7s ease-in-out infinite alternate;
 }
-#hint button {
-  margin-top: 24px;
-  background: #fff;
-  color: #000;
+@keyframes welcome-nudge {
+  from { transform: translateY(-3px); }
+  to   { transform: translateY(3px);  }
+}
+
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+.pill-cta { font-size: 14px; padding: 13px 28px; }
+
+.welcome-ghost {
+  background: transparent;
   border: none;
-  padding: 12px 28px;
-  border-radius: 999px;
-  font-size: 17px;
-  font-weight: 500;
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
   cursor: pointer;
-  font-family: inherit;
+  padding: 4px 8px;
+}
+.welcome-ghost:hover { color: var(--fg); }
+
+.welcome-dots {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  margin-top: 18px;
+  color: var(--fg);
+}
+.welcome-dots .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.22;
+  transition: opacity 0.2s ease;
+}
+.welcome-dots .dot.is-active { opacity: 0.7; }
+
+@media (prefers-reduced-motion: reduce) {
+  #welcome-sheet[open] .welcome,
+  #welcome-sheet[open]::backdrop,
+  .welcome-glyph.is-animated svg { animation: none; }
 }
 
 /* About card — Macintosh-style */

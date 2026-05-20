@@ -1,0 +1,20 @@
+# Timebase
+
+> A calm, fast world clock and meeting planner for people who live and work across time zones. Free, runs in any browser, no account, no tracking.
+
+Timebase (https://timebase.me) shows the cities you care about stacked by the hour, each one washed in the color of its local sky. Drag or scroll to scrub the whole world forward and back through the day. The planner picks a time and shows how it lands for everyone at once, then hands you a link to share. There is also a native iOS app.
+
+Key facts:
+- Free — no account, no signup, no ads, no analytics, no tracking.
+- Runs in any modern browser; preferences are saved locally on the device.
+- Daylight saving time and historical time-zone changes are handled automatically from IANA time-zone data.
+- Any set of cities, plus a proposed meeting time, can be shared as a plain link.
+- Made by Amrith (https://x.com/amrith).
+
+## Pages
+- [Timebase web app](https://timebase.me/): The world clock and cross-time-zone meeting planner.
+- [Support & FAQ](https://timebase.me/support): Common questions — scrubbing through time, adding cities, calendar access, widgets, and syncing across devices.
+- [Privacy & Terms](https://timebase.me/privacy): Privacy policy (nothing is collected) and terms of use.
+
+## Also available
+- [Timebase for iOS](https://apps.apple.com/app/id6770247920): The iPhone app, with home-screen widgets, Live Activities, Siri shortcuts, and calendar countdowns.

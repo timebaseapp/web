@@ -3,14 +3,34 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Timebase</title>
-<meta name="description" content="A world clock you actually want to open. Drag anywhere to see what time it'll be." />
+<title>Timebase — World Clock &amp; Time Zone Planner</title>
+<meta name="description" content="A calm, fast world clock and meeting planner. See the time across cities, scrub through the day, and plan meetings that work for everyone. Free, no signup." />
+<link rel="canonical" href="https://timebase.me/" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<meta name="author" content="Amrith" />
+
+<!-- Open Graph / Twitter — social link previews -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Timebase" />
+<meta property="og:url" content="https://timebase.me/" />
+<meta property="og:title" content="Timebase — World Clock &amp; Time Zone Planner" />
+<meta property="og:description" content="A calm, fast world clock and meeting planner. See the time across cities, scrub through the day, and plan meetings that work for everyone." />
+<meta property="og:image" content="https://timebase.me/og.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Timebase — a calm world clock and time zone planner" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Timebase — World Clock &amp; Time Zone Planner" />
+<meta name="twitter:description" content="A calm, fast world clock and meeting planner across time zones." />
+<meta name="twitter:image" content="https://timebase.me/og.jpg" />
+<meta name="twitter:creator" content="@amrith" />
 <meta name="theme-color" content="#F8F6F2" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)" />
 <!-- Native iOS smart banner so people on iPhone see "open in app" at the top
      when they land on a shared link. Replace 6770247920 once App Store ID is
      finalised post-review. -->
 <meta name="apple-itunes-app" content="app-id=6770247920" />
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
 <link rel="icon" href="/icon.svg" type="image/svg+xml" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -22,6 +42,55 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/styles.css" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://timebase.me/#website",
+      "name": "Timebase",
+      "url": "https://timebase.me/",
+      "description": "A calm world clock and meeting planner for people who live across time zones.",
+      "inLanguage": "en",
+      "publisher": { "@id": "https://timebase.me/#amrith" }
+    },
+    {
+      "@type": "WebApplication",
+      "@id": "https://timebase.me/#app",
+      "name": "Timebase",
+      "url": "https://timebase.me/",
+      "description": "Timebase is a free world clock and meeting planner. It shows the cities you care about stacked by the hour, lets you scrub the whole world forward and back through the day, and plans meeting times that work for everyone — with daylight saving handled automatically.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires JavaScript.",
+      "inLanguage": "en",
+      "image": "https://timebase.me/apple-touch-icon.png",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "featureList": [
+        "World clock for cities in every time zone",
+        "Scrub through the day to see what time it will be anywhere",
+        "Plan meetings across time zones and see how they land for everyone",
+        "Automatic daylight saving time handling",
+        "Shareable links for any set of cities and a chosen time",
+        "Works in any browser — free, no account, no tracking"
+      ],
+      "author": { "@id": "https://timebase.me/#amrith" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://timebase.me/#amrith",
+      "name": "Amrith",
+      "url": "https://x.com/amrith",
+      "sameAs": [
+        "https://x.com/amrith",
+        "https://github.com/timebaseapp"
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -39,14 +108,6 @@
   </button>
   <div id="scrub-pill" class="pill" hidden></div>
   <div id="next-pill" class="pill" hidden></div>
-  <button id="share-pill" class="pill icon-pill" type="button" aria-label="Share this view" title="Copy a shareable link (C)">
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="6" cy="12" r="2.5"/>
-      <circle cx="18" cy="6" r="2.5"/>
-      <circle cx="18" cy="18" r="2.5"/>
-      <path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/>
-    </svg>
-  </button>
   <button id="add-pill" class="pill icon-pill" type="button" aria-label="Add city">
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
   </button>
@@ -89,14 +150,14 @@
     </header>
 
     <div class="plan-inputs">
-      <label class="plan-field">
+      <button type="button" class="plan-field plan-field-btn" id="plan-date-btn" aria-haspopup="dialog">
         <span class="plan-label">DATE</span>
-        <input id="plan-date" type="date" />
-      </label>
-      <label class="plan-field">
+        <span class="plan-field-value" id="plan-date-value"></span>
+      </button>
+      <button type="button" class="plan-field plan-field-btn" id="plan-time-btn" aria-haspopup="dialog">
         <span class="plan-label">TIME</span>
-        <input id="plan-time" type="time" />
-      </label>
+        <span class="plan-field-value" id="plan-time-value"></span>
+      </button>
       <label class="plan-field plan-anchor">
         <span class="plan-label">IN</span>
         <select id="plan-anchor"></select>
@@ -110,9 +171,27 @@
 
     <footer class="plan-footer">
       <button type="button" id="plan-now-btn" class="ghost">Use current time</button>
-      <button type="button" id="plan-copy-btn">Copy share link</button>
+      <button type="button" id="plan-copy-btn">Copy details</button>
     </footer>
   </form>
+
+  <!-- Date / time picker popovers. They MUST live inside this dialog: a
+       showModal() dialog makes everything outside its subtree inert, so a
+       popover in <body> would render but its buttons wouldn't be clickable. -->
+  <div id="date-popover" class="tb-pop" popover>
+    <div class="cal-head">
+      <button type="button" class="cal-nav" id="cal-prev" aria-label="Previous month">&lsaquo;</button>
+      <span class="cal-month" id="cal-month"></span>
+      <button type="button" class="cal-nav" id="cal-next" aria-label="Next month">&rsaquo;</button>
+    </div>
+    <div class="cal-dow-row">
+      <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+  <div id="time-popover" class="tb-pop" popover>
+    <div id="tp-body"></div>
+  </div>
 </dialog>
 
 <!-- Keyboard shortcuts cheat sheet -->
@@ -129,15 +208,11 @@
       <dt><kbd>Space</kbd> / <kbd>Esc</kbd></dt><dd>Snap to now</dd>
       <dt><kbd>S</kbd></dt><dd>Plan a time</dd>
       <dt><kbd>/</kbd></dt><dd>Add a city</dd>
-      <dt><kbd>C</kbd></dt><dd>Copy share link</dd>
       <dt><kbd>I</kbd></dt><dd>About</dd>
       <dt><kbd>?</kbd></dt><dd>This card</dd>
     </dl>
   </form>
 </dialog>
-
-<!-- Toast for "Link copied" etc -->
-<div id="toast" hidden role="status" aria-live="polite"></div>
 
 <!-- About card — Macintosh-style -->
 <dialog id="about-sheet" aria-label="About Timebase">
@@ -202,12 +277,72 @@
   </form>
 </dialog>
 
-<!-- First-run hint -->
-<div id="hint" hidden>
-  <p>Drag anywhere to see what time it'll be.</p>
-  <p>Double-tap to return to now. Press <kbd>?</kbd> for shortcuts.</p>
-  <button type="button" id="hint-dismiss">Got it</button>
-</div>
+<!-- First-run welcome — macOS-style window, reuses the About card chrome -->
+<dialog id="welcome-sheet" aria-label="Welcome to Timebase">
+  <form method="dialog" class="about-card welcome">
+    <div class="traffic-lights">
+      <button type="submit" value="cancel" class="traffic-light close" aria-label="Close">
+        <svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1.5 1.5l5 5M6.5 1.5l-5 5"/></svg>
+      </button>
+      <span class="traffic-light minimize" aria-hidden="true">
+        <svg viewBox="0 0 8 8"><path d="M1.5 4h5"/></svg>
+      </span>
+      <span class="traffic-light maximize" aria-hidden="true">
+        <svg viewBox="0 0 8 8"><path d="M2 2h4v4h-4z" fill="none"/></svg>
+      </span>
+    </div>
+
+    <!-- Step 1 — wordmark + tagline -->
+    <div class="welcome-step" data-step="0">
+      <div class="about-wordmark">Timebase</div>
+      <p class="about-tagline">A quieter way to think across timezones</p>
+      <p class="welcome-text">Every city you care about, stacked by the hour and lit by the color of its own sky.</p>
+      <div class="welcome-actions">
+        <button type="button" class="pill pill-cta welcome-advance">Show me how</button>
+        <button type="submit" value="skip" class="welcome-ghost">Skip the tour</button>
+      </div>
+    </div>
+
+    <!-- Step 2 — the one gesture -->
+    <div class="welcome-step" data-step="1" hidden>
+      <h2 class="welcome-heading">One gesture</h2>
+      <div class="welcome-glyph is-animated">
+        <svg viewBox="0 0 24 44" width="26" height="46" fill="none" stroke="currentColor"
+             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 4v14" /><path d="M6 10l6-6 6 6" />
+          <path d="M12 40V26" /><path d="M6 34l6 6 6-6" />
+        </svg>
+      </div>
+      <p class="welcome-text">Drag anywhere — or scroll — to move the day forward and back. Double-tap to return to now.</p>
+      <p class="welcome-foot">Press <kbd>?</kbd> anytime for keyboard shortcuts.</p>
+      <div class="welcome-actions">
+        <button type="button" class="pill pill-cta welcome-advance">Next</button>
+      </div>
+    </div>
+
+    <!-- Step 3 — plan together -->
+    <div class="welcome-step" data-step="2" hidden>
+      <h2 class="welcome-heading">Plan together</h2>
+      <div class="welcome-glyph">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+          <path d="M8 3v4M16 3v4M3.5 10h17" />
+        </svg>
+      </div>
+      <p class="welcome-text">Open the planner to pick a time, watch it land for every city at once, then send it round so everyone can confirm.</p>
+      <div class="welcome-actions">
+        <button type="submit" value="done" class="pill pill-cta">Got it</button>
+      </div>
+    </div>
+
+    <div class="welcome-dots" aria-hidden="true">
+      <span class="dot is-active"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+    </div>
+  </form>
+</dialog>
 
 <script src="/app.js" type="module"></script>
 </body>

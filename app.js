@@ -109,8 +109,26 @@ function interpolate(palette, hour) {
   }
   return palette[0].lch;
 }
+// OKLCH → sRGB, byte-identical to the iOS OKLCH.toRGBA pipeline: Ottosson
+// oklab→linear-sRGB matrices, delinearize, clamp per channel. We emit rgb()
+// rather than the CSS oklch() function so the web renders the SAME clamped
+// sRGB values as iOS — the browser's own oklch() rendering can drift on
+// wide-gamut (P3) displays.
+function srgbDelinearize(c) {
+  return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+}
 function lchToCssColor([L, C, H]) {
-  return `oklch(${(L*100).toFixed(2)}% ${C.toFixed(4)} ${H.toFixed(2)})`;
+  const a = C * Math.cos(H * Math.PI / 180);
+  const b = C * Math.sin(H * Math.PI / 180);
+  const l_ = L + 0.3963377774*a + 0.2158037573*b;
+  const m_ = L - 0.1055613458*a - 0.0638541728*b;
+  const s_ = L - 0.0894841775*a - 1.2914855480*b;
+  const l = l_*l_*l_, m = m_*m_*m_, s = s_*s_*s_;
+  const r  =  4.0767416621*l - 3.3077115913*m + 0.2309699292*s;
+  const g  = -1.2684380046*l + 2.6097574011*m - 0.3413193965*s;
+  const bl = -0.0041960863*l - 0.7034186147*m + 1.7076147010*s;
+  const ch = v => Math.round(Math.min(1, Math.max(0, srgbDelinearize(v))) * 255);
+  return `rgb(${ch(r)} ${ch(g)} ${ch(bl)})`;
 }
 function contrastForeground([L]) {
   // L is 0..1 in OKLab. ~0.65 is the crossover for legible white-on-color.
@@ -284,25 +302,11 @@ function shareUrl({ includeTime = false } = {}) {
   return u.toString().replace(/%2C/g, ',');
 }
 
-async function copyShareUrl(opts) {
-  const url = shareUrl(opts);
-  try {
-    await navigator.clipboard.writeText(url);
-    showToast(opts && opts.includeTime ? 'Plan link copied' : 'Link copied');
-  } catch {
-    // Fallback: open share sheet on mobile / select-and-prompt on desktop.
-    if (navigator.share) {
-      try { await navigator.share({ url, title: 'Timebase' }); } catch {}
-    } else {
-      window.prompt('Copy this link:', url);
-    }
-  }
-}
-
 function cityId(c) { return `${c.name}|${c.tz}`; }
 
 // All cities (including home) sorted by UTC offset ascending — colors flow
-// as a continuous gradient. Home is marked with a 🏠 prefix on its row.
+// as a continuous gradient. Home is marked with a 🏠 suffix on its row, so
+// every city name still starts at the same left edge (matches iOS).
 // `atMs` is the instant the offsets are evaluated at: pass the scrubbed or
 // planned time so the row order stays correct across a DST boundary, not
 // just at real-world "now".
@@ -368,6 +372,9 @@ function renderClock() {
 
     const h = formatHourFraction(ms, city.tz);
     const lch = interpolate(pal, h);
+    // While scrubbed, drop chroma to 70% — matches iOS TimeColor's scrubMute
+    // (0.5 → c × (1 − 0.5·0.6)), done in OKLCH space rather than via a filter.
+    if (store.scrubOffsetMin !== 0) lch[1] *= 0.7;
     const cssBase = lchToCssColor(lch);
     // Two-stop subtle gradient: lighter top, slightly deeper bottom.
     const topLch = [Math.min(1, lch[0] + 0.035), lch[1] * 0.95, lch[2]];
@@ -386,7 +393,7 @@ function renderClock() {
     }
 
     const isHome = city.id === store.homeId;
-    const displayName = isHome ? `🏠&nbsp;&nbsp;${city.name}` : city.name;
+    const displayName = isHome ? `${city.name}&nbsp;&nbsp;🏠` : city.name;
     row.innerHTML = `
       <div class="name">${displayName}</div>
       <div class="time"><span>${formatTime(ms, city.tz)}</span>${dayChip}</div>
@@ -430,7 +437,7 @@ let initialScrub = 0;
 let dragTargetRow = null;
 
 function onPointerDown(e) {
-  if (e.target.closest('button, dialog, #menu-popover, #hint, .pill, #menu-trigger')) return;
+  if (e.target.closest('button, dialog, #menu-popover, .pill, #menu-trigger')) return;
   dragStart = { x: e.clientX, y: e.clientY };
   initialScrub = store.scrubOffsetMin;
   dragHappened = false;
@@ -491,7 +498,7 @@ scrubPill.addEventListener('click', snapToNow);
 // deltaY negative (scroll up) advance time, mirroring the drag convention.
 clockEl.addEventListener('wheel', e => {
   // Only intercept when the target isn't inside a dialog/menu.
-  if (e.target.closest('dialog, #menu-popover, #hint')) return;
+  if (e.target.closest('dialog, #menu-popover')) return;
   e.preventDefault();
   // deltaMode: 0 = pixel, 1 = line, 2 = page. Normalize.
   const scale = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 800 : 1);
@@ -716,8 +723,6 @@ document.getElementById('remove-btn').addEventListener('click', () => {
 
 const planSheet     = document.getElementById('plan-sheet');
 const planPill      = document.getElementById('plan-pill');
-const planDateInput = document.getElementById('plan-date');
-const planTimeInput = document.getElementById('plan-time');
 const planAnchorEl  = document.getElementById('plan-anchor');
 const planResultsEl = document.getElementById('plan-results');
 const planWeekendEl = document.getElementById('plan-weekend-note');
@@ -746,9 +751,7 @@ function openPlanSheet(opts) {
   if (!planState.anchorId) planState.anchorId = store.homeId || store.cities[0]?.id;
   if (!planState.dateStr || !planState.timeStr) seedDefaultTime();
 
-  planDateInput.value = planState.dateStr;
-  planTimeInput.value = planState.timeStr;
-  planAnchorEl.value  = planState.anchorId || '';
+  refreshPlanFields();
   renderPlanResults();
   planSheet.showModal();
 }
@@ -813,7 +816,7 @@ function vibeFor(hourLocal) {
     return { label: 'asleep', glyph: '🌙', klass: 'asleep' };
   }
   if (hourLocal >= 6 && hourLocal < 9)  return { label: 'waking up',   glyph: '☕', klass: 'waking' };
-  if (hourLocal >= 9 && hourLocal < 18) return { label: 'working',     glyph: '☀',  klass: 'working' };
+  if (hourLocal >= 9 && hourLocal < 18) return { label: 'working',     glyph: '☀️', klass: 'working' };
   return { label: 'winding down', glyph: '🌇', klass: 'winding' };
 }
 
@@ -860,35 +863,294 @@ function renderPlanResults() {
   }));
 }
 
+/* ── "Copy details" — iOS-style share text + a Timebase link ── */
+
+// "8 AM" / "8:30 AM" / "20:00" — mirrors the iOS cleanTime(): drops the
+// ":00" on whole hours in 12-hour mode, keeps it in 24-hour mode.
+function cleanTime(absMs, tz) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz,
+  }).formatToParts(absMs);
+  const H = parseInt(parts.find(p => p.type === 'hour').value, 10);
+  const M = parseInt(parts.find(p => p.type === 'minute').value, 10);
+  let use24;
+  if (store.settings.h24 === 'on') use24 = true;
+  else if (store.settings.h24 === 'off') use24 = false;
+  else use24 = !new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12;
+  if (use24) return `${H}:${String(M).padStart(2, '0')}`;
+  const period = H < 12 ? 'AM' : 'PM';
+  const h12 = H % 12 === 0 ? 12 : H % 12;
+  return M === 0 ? `${h12} ${period}` : `${h12}:${String(M).padStart(2, '0')} ${period}`;
+}
+
+function weekdayAbbr(absMs, tz) {
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: tz }).format(absMs);
+}
+
+// The text dropped on the clipboard / share sheet: the proposed time in
+// every city (anchor first), plus a Timebase link that reopens this plan.
+function planShareText() {
+  const anchor = store.cities.find(x => x.id === planState.anchorId);
+  if (!anchor) return '';
+  const absMs = localToAbsoluteMs(planState.dateStr, planState.timeStr, anchor.tz);
+  if (absMs == null) return '';
+
+  const datePhrase = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', timeZone: anchor.tz,
+  }).format(absMs);
+  const anchorDay = dayKey(absMs, anchor.tz);
+  const ordered = [anchor, ...orderedCities(absMs).filter(c => c.id !== anchor.id)];
+
+  const lines = [`Does ${datePhrase} work?`, ''];
+  for (const c of ordered) {
+    const h = Math.floor(formatHourFraction(absMs, c.tz));
+    let line = `${vibeFor(h).glyph} ${c.name} · ${cleanTime(absMs, c.tz)}`;
+    if (dayKey(absMs, c.tz) !== anchorDay) line += ` ${weekdayAbbr(absMs, c.tz)}`;
+    lines.push(line);
+  }
+  lines.push('', 'See it on Timebase:', shareUrl({ includeTime: true }));
+  return lines.join('\n');
+}
+
+let copyResetTimer = null;
+// Confirm the copy on the button itself — it sits in the modal sheet's top
+// layer, always in view, and right where the user just clicked. A bottom
+// toast would render *under* the sheet and go unseen.
+function flashCopied() {
+  planCopyBtn.classList.add('is-copied');
+  planCopyBtn.textContent = '✓  Copied';
+  clearTimeout(copyResetTimer);
+  copyResetTimer = setTimeout(() => {
+    planCopyBtn.classList.remove('is-copied');
+    planCopyBtn.textContent = 'Copy details';
+  }, 2400);
+}
+
+async function copyPlanDetails() {
+  const text = planShareText();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    flashCopied();
+  } catch {
+    // No clipboard (insecure context / denied) — fall back to the OS share
+    // sheet on mobile, or a select-and-copy prompt on desktop; both are
+    // themselves visible confirmation.
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch {}
+    } else {
+      window.prompt('Copy this:', text);
+    }
+  }
+}
+
 planPill.addEventListener('click', () => openPlanSheet());
-planDateInput.addEventListener('input', () => { planState.dateStr = planDateInput.value; renderPlanResults(); });
-planTimeInput.addEventListener('input', () => { planState.timeStr = planTimeInput.value; renderPlanResults(); });
 planAnchorEl.addEventListener('change', () => { planState.anchorId = planAnchorEl.value; renderPlanResults(); });
-planNowBtn.addEventListener('click', () => { seedDefaultTime(); planDateInput.value = planState.dateStr; planTimeInput.value = planState.timeStr; renderPlanResults(); });
-planCopyBtn.addEventListener('click', () => copyShareUrl({ includeTime: true }));
+planNowBtn.addEventListener('click', () => { seedDefaultTime(); refreshPlanFields(); renderPlanResults(); });
+planCopyBtn.addEventListener('click', () => copyPlanDetails());
+
+/* ── On-brand date / time pickers — top-layer popovers anchored to the
+      DATE / TIME fields, so they're never clipped by the sheet and never
+      fall through to the OS's unstyled native picker. ── */
+
+const datePopover   = document.getElementById('date-popover');
+const timePopover   = document.getElementById('time-popover');
+const planDateBtn   = document.getElementById('plan-date-btn');
+const planTimeBtn   = document.getElementById('plan-time-btn');
+const planDateValue = document.getElementById('plan-date-value');
+const planTimeValue = document.getElementById('plan-time-value');
+const calMonthEl    = document.getElementById('cal-month');
+const calGridEl     = document.getElementById('cal-grid');
+const tpBodyEl      = document.getElementById('tp-body');
+
+const calView = { y: 2026, m: 0 };  // month the calendar is showing
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function ymdKey(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+
+// True when the user's setting / locale wants 24-hour time.
+function uses24h() {
+  if (store.settings.h24 === 'on') return true;
+  if (store.settings.h24 === 'off') return false;
+  return !new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12;
+}
+
+// 'YYYY-MM-DD' → "Wed, May 21"
+function dateLabel(s) {
+  if (!s) return '—';
+  const [Y, M, D] = s.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  }).format(new Date(Y, M - 1, D));
+}
+// 'HH:MM' → "4:30 PM" / "16:30"
+function timeLabel(s) {
+  if (!s) return '—';
+  const [H, M] = s.split(':').map(Number);
+  if (uses24h()) return `${pad2(H)}:${pad2(M)}`;
+  const period = H < 12 ? 'AM' : 'PM';
+  const h12 = H % 12 === 0 ? 12 : H % 12;
+  return `${h12}:${pad2(M)} ${period}`;
+}
+
+function refreshPlanFields() {
+  planDateValue.textContent = dateLabel(planState.dateStr);
+  planTimeValue.textContent = timeLabel(planState.timeStr);
+  planAnchorEl.value = planState.anchorId || '';
+}
+
+// Pin a popover just under its field, flipping above / clamping to the
+// viewport if it would overflow.
+function placePopover(pop, anchorEl) {
+  const r = anchorEl.getBoundingClientRect();
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+  let top = r.bottom + 6;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+}
+
+/* Calendar */
+function openDatePicker() {
+  const [Y, M] = (planState.dateStr || ymdKey(new Date())).split('-').map(Number);
+  calView.y = Y; calView.m = M - 1;
+  renderCalendar();
+  datePopover.showPopover();
+  placePopover(datePopover, planDateBtn);
+}
+function renderCalendar() {
+  calMonthEl.textContent = new Intl.DateTimeFormat('en-US', {
+    month: 'long', year: 'numeric',
+  }).format(new Date(calView.y, calView.m, 1));
+  const todayKey = ymdKey(new Date());
+  const first = new Date(calView.y, calView.m, 1);
+  // Back up to the Sunday on or before the 1st; render a fixed 6×7 grid.
+  const start = new Date(calView.y, calView.m, 1 - first.getDay());
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const key = ymdKey(d);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cal-day';
+    btn.textContent = d.getDate();
+    if (d.getMonth() !== calView.m) btn.classList.add('is-other');
+    if (key === todayKey) btn.classList.add('is-today');
+    if (key === planState.dateStr) btn.classList.add('is-selected');
+    btn.addEventListener('click', () => {
+      planState.dateStr = key;
+      refreshPlanFields();
+      renderPlanResults();
+      datePopover.hidePopover();
+    });
+    frag.appendChild(btn);
+  }
+  calGridEl.replaceChildren(frag);
+}
+document.getElementById('cal-prev').addEventListener('click', () => {
+  if (--calView.m < 0) { calView.m = 11; calView.y--; }
+  renderCalendar();
+});
+document.getElementById('cal-next').addEventListener('click', () => {
+  if (++calView.m > 11) { calView.m = 0; calView.y++; }
+  renderCalendar();
+});
+
+/* Time picker */
+function openTimePicker() {
+  renderTimePicker();
+  timePopover.showPopover();
+  placePopover(timePopover, planTimeBtn);
+}
+function tpLabel(text) {
+  const p = document.createElement('p');
+  p.className = 'tp-label';
+  p.textContent = text;
+  return p;
+}
+function renderTimePicker() {
+  const [H, M] = planState.timeStr.split(':').map(Number);
+  const is24 = uses24h();
+  const ampm = H < 12 ? 'AM' : 'PM';
+  tpBodyEl.replaceChildren();
+
+  // timeStr is canonical 24h; the popover just presents it per the setting.
+  const commit = (h, m) => {
+    planState.timeStr = `${pad2(h)}:${pad2(m)}`;
+    refreshPlanFields();
+    renderPlanResults();
+    renderTimePicker();   // re-render so the highlight follows the pick
+  };
+
+  if (!is24) {
+    const row = document.createElement('div');
+    row.className = 'tp-ampm';
+    for (const p of ['AM', 'PM']) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = p;
+      if (p === ampm) b.classList.add('is-selected');
+      b.addEventListener('click', () => {
+        const base = H % 12;                          // re-home into the new half
+        commit(p === 'PM' ? base + 12 : base, M);
+      });
+      row.appendChild(b);
+    }
+    tpBodyEl.appendChild(row);
+  }
+
+  tpBodyEl.appendChild(tpLabel('Hour'));
+  const hourGrid = document.createElement('div');
+  hourGrid.className = 'tp-grid';
+  const hours = is24
+    ? Array.from({ length: 24 }, (_, i) => i)
+    : Array.from({ length: 12 }, (_, i) => (i === 0 ? 12 : i));
+  for (const hh of hours) {
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'tp-cell';
+    cell.textContent = is24 ? pad2(hh) : hh;
+    const realH = is24 ? hh : (hh % 12) + (ampm === 'PM' ? 12 : 0);
+    if (realH === H) cell.classList.add('is-selected');
+    cell.addEventListener('click', () => commit(realH, M));
+    hourGrid.appendChild(cell);
+  }
+  tpBodyEl.appendChild(hourGrid);
+
+  tpBodyEl.appendChild(tpLabel('Minute'));
+  const minGrid = document.createElement('div');
+  minGrid.className = 'tp-grid';
+  for (let mm = 0; mm < 60; mm += 5) {
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'tp-cell';
+    cell.textContent = pad2(mm);
+    if (mm === M) cell.classList.add('is-selected');
+    cell.addEventListener('click', () => commit(H, mm));
+    minGrid.appendChild(cell);
+  }
+  tpBodyEl.appendChild(minGrid);
+}
+
+planDateBtn.addEventListener('click', openDatePicker);
+planTimeBtn.addEventListener('click', openTimePicker);
+datePopover.addEventListener('toggle', e => {
+  planDateBtn.classList.toggle('is-open', e.newState === 'open');
+});
+timePopover.addEventListener('toggle', e => {
+  planTimeBtn.classList.toggle('is-open', e.newState === 'open');
+});
+// Picker popovers shouldn't outlive the sheet they belong to.
+planSheet.addEventListener('close', () => {
+  for (const pop of [datePopover, timePopover]) {
+    if (pop.matches(':popover-open')) pop.hidePopover();
+  }
+});
 
 /* ───────────── Share + shortcuts cheat sheet ───────────── */
 
-const sharePill = document.getElementById('share-pill');
 const shortcutsSheet = document.getElementById('shortcuts-sheet');
-sharePill.addEventListener('click', () => copyShareUrl({ includeTime: false }));
-
-/* ───────────── Toast ───────────── */
-
-const toast = document.getElementById('toast');
-let toastTimer = null;
-function showToast(msg) {
-  toast.textContent = msg;
-  toast.hidden = false;
-  // Force reflow so the transition fires.
-  void toast.offsetWidth;
-  toast.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => { toast.hidden = true; }, 220);
-  }, 1600);
-}
 
 /* ───────────── Extended keyboard shortcuts ───────────── */
 
@@ -905,20 +1167,33 @@ document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === 's') { e.preventDefault(); openPlanSheet(); }
   else if (k === '/') { e.preventDefault(); openAddSheet(); }
-  else if (k === 'c') { e.preventDefault(); copyShareUrl({ includeTime: false }); }
   else if (k === 'i') { e.preventDefault(); openAboutCard(); }
   else if (k === '?') { e.preventDefault(); shortcutsSheet.showModal(); }
 });
 
-// First-run hint
-const hint = document.getElementById('hint');
-document.getElementById('hint-dismiss').addEventListener('click', () => {
-  hint.hidden = true;
-  store.hintSeen = true;
-  saveState();
+// First-run welcome — a macOS-style window reusing the About card chrome.
+// Three steps inside one window; closes via the red traffic light, Skip, the
+// final Got it, or a backdrop click — all routed through the `close` event.
+const welcomeSheet = document.getElementById('welcome-sheet');
+const welcomeSteps = [...welcomeSheet.querySelectorAll('.welcome-step')];
+const welcomeDots  = [...welcomeSheet.querySelectorAll('.welcome-dots .dot')];
+let welcomeStep = 0;
+
+function setWelcomeStep(n) {
+  welcomeStep = n;
+  welcomeSteps.forEach((el, i) => { el.hidden = i !== n; });
+  welcomeDots.forEach((d, i) => d.classList.toggle('is-active', i === n));
+}
+welcomeSheet.querySelectorAll('.welcome-advance').forEach(btn => {
+  btn.addEventListener('click', () => setWelcomeStep(welcomeStep + 1));
 });
-function maybeShowHint() {
-  if (!store.hintSeen) hint.hidden = false;
+welcomeSheet.addEventListener('close', () => {
+  if (!store.hintSeen) { store.hintSeen = true; saveState(); }
+});
+function maybeShowWelcome() {
+  if (store.hintSeen) return;
+  setWelcomeStep(0);
+  welcomeSheet.showModal();
 }
 
 /* ───────────── lifecycle ───────────── */
@@ -943,7 +1218,7 @@ async function init() {
 
   applyTheme();
   renderClock();
-  maybeShowHint();
+  maybeShowWelcome();
   setInterval(renderClock, 1000);
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => renderClock());
 
