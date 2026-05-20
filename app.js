@@ -303,22 +303,26 @@ function cityId(c) { return `${c.name}|${c.tz}`; }
 
 // All cities (including home) sorted by UTC offset ascending — colors flow
 // as a continuous gradient. Home is marked with a 🏠 prefix on its row.
-function orderedCities() {
+// `atMs` is the instant the offsets are evaluated at: pass the scrubbed or
+// planned time so the row order stays correct across a DST boundary, not
+// just at real-world "now".
+function orderedCities(atMs = Date.now()) {
   return [...store.cities].sort((a, b) => {
-    const aOff = tzOffsetMinutes(a.tz);
-    const bOff = tzOffsetMinutes(b.tz);
+    const aOff = tzOffsetMinutes(a.tz, atMs);
+    const bOff = tzOffsetMinutes(b.tz, atMs);
     if (aOff === bOff) return a.name.localeCompare(b.name);
     return aOff - bOff;
   });
 }
 
-function tzOffsetMinutes(tz) {
-  // Get current UTC offset in minutes for the given IANA timezone.
-  const now = new Date();
+// UTC offset in minutes for an IANA timezone, evaluated at `atMs`. Because
+// it reads the offset for that specific instant, it returns the correct
+// standard- or daylight-time offset automatically.
+function tzOffsetMinutes(tz, atMs = Date.now()) {
   const dtf = new Intl.DateTimeFormat('en-US', {
     timeZone: tz, timeZoneName: 'longOffset',
   });
-  const parts = dtf.formatToParts(now);
+  const parts = dtf.formatToParts(atMs);
   const tzn = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT+0';
   const m = tzn.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
   if (!m) return 0;
@@ -354,9 +358,10 @@ function renderClock() {
   const homeKey = store.homeId ? dayKey(ms, (store.cities.find(c => c.id === store.homeId)?.tz) || 'UTC') : null;
   const pal = palette();
 
-  // Render rows.
+  // Render rows. Order by offset AT the scrubbed instant, so the rows
+  // re-sort correctly if a scrub crosses a DST boundary.
   const frag = document.createDocumentFragment();
-  for (const city of orderedCities()) {
+  for (const city of orderedCities(ms)) {
     const row = document.createElement('div');
     row.className = 'row';
     row.dataset.id = city.id;
@@ -827,7 +832,9 @@ function renderPlanResults() {
     planWeekendEl.hidden = true;
   }
 
-  const items = orderedCities().map(c => {
+  // Order by offset AT the planned meeting instant — correct even if the
+  // meeting date lands on the other side of a DST change from today.
+  const items = orderedCities(absMs).map(c => {
     const local = formatTime(absMs, c.tz);
     const h = Math.floor(formatHourFraction(absMs, c.tz));
     const v = vibeFor(h);
