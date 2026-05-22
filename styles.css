@@ -565,6 +565,41 @@ dialog::backdrop {
 .sheet-inner.plan .plan-section-label {
   margin-top: 20px;
 }
+.sheet-inner.plan .plan-first-label {
+  margin-top: 6px;
+}
+
+/* Participant chips — tap to toggle. Filled = included in the plan. */
+.plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0;
+}
+.plan-chip {
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg-muted);
+  border: 0.5px solid var(--rule);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  white-space: nowrap;
+}
+.plan-chip:hover {
+  background: rgba(128, 128, 128, 0.10);
+  color: var(--fg);
+}
+.plan-chip.is-on {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
 .sheet-inner.plan #plan-results {
   list-style: none;
   margin: 4px 0 0;

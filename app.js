@@ -212,6 +212,9 @@ const store = {
   scrubOffsetMin: 0,
   settings: { h24: 'system', appearance: 'system' },
   hintSeen: false,
+  // null = "use all tracked cities" (so newly-added cities auto-include).
+  // Array = the subset of city ids the user has chosen to plan with.
+  planParticipants: null,
 };
 
 let CITY_DB = [];
@@ -226,8 +229,18 @@ function loadState() {
   } catch {}
 }
 function saveState() {
-  const { cities, homeId, settings, hintSeen } = store;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ cities, homeId, settings, hintSeen }));
+  const { cities, homeId, settings, hintSeen, planParticipants } = store;
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ cities, homeId, settings, hintSeen, planParticipants }),
+  );
+}
+
+// Resolved cities for the planner: null means "use all tracked".
+function planParticipantCities() {
+  if (!store.planParticipants) return store.cities;
+  const filtered = store.cities.filter(c => store.planParticipants.includes(c.id));
+  return filtered.length > 0 ? filtered : store.cities;
 }
 
 async function loadCityDB() {
@@ -287,15 +300,17 @@ function readUrlState() {
     planAnchor: params.get('anchor') || null,
   };
 }
-function shareUrl({ includeTime = false } = {}) {
+function shareUrl({ includeTime = false, cities = store.cities } = {}) {
   const u = new URL(window.location.origin + '/');
   // Use the LIST order, not the sorted order — order is part of the user's intent.
-  u.searchParams.set('c', store.cities.map(c => c.name).join(','));
-  const home = store.cities.find(x => x.id === store.homeId);
-  if (home) u.searchParams.set('h', home.name);
+  u.searchParams.set('c', cities.map(c => c.name).join(','));
+  const homeInList = cities.find(x => x.id === store.homeId);
+  if (homeInList) u.searchParams.set('h', homeInList.name);
   if (includeTime && planState.dateStr && planState.timeStr && planState.anchorId) {
     u.searchParams.set('t', `${planState.dateStr}T${planState.timeStr}`);
-    const anchor = store.cities.find(x => x.id === planState.anchorId);
+    const anchor =
+      cities.find(x => x.id === planState.anchorId) ||
+      store.cities.find(x => x.id === planState.anchorId);
     if (anchor) u.searchParams.set('anchor', anchor.name);
   }
   // Use unescaped commas for readability — spec allows them in query strings.
@@ -310,8 +325,8 @@ function cityId(c) { return `${c.name}|${c.tz}`; }
 // `atMs` is the instant the offsets are evaluated at: pass the scrubbed or
 // planned time so the row order stays correct across a DST boundary, not
 // just at real-world "now".
-function orderedCities(atMs = Date.now()) {
-  return [...store.cities].sort((a, b) => {
+function orderedCities(atMs = Date.now(), cities = store.cities) {
+  return [...cities].sort((a, b) => {
     const aOff = tzOffsetMinutes(a.tz, atMs);
     const bOff = tzOffsetMinutes(b.tz, atMs);
     if (aOff === bOff) return a.name.localeCompare(b.name);
@@ -611,6 +626,10 @@ function populateCityList(query) {
         }
         store.cities = store.cities.filter(x => x.id !== id);
         if (store.homeId === id) store.homeId = store.cities[0].id;
+        if (store.planParticipants) {
+          store.planParticipants = store.planParticipants.filter(p => p !== id);
+          if (store.planParticipants.length === 0) store.planParticipants = null;
+        }
         saveState();
         renderClock();
         populateCityList(citySearch.value);  // refresh list state
@@ -712,6 +731,10 @@ document.getElementById('remove-btn').addEventListener('click', () => {
   if (store.cities.length <= 1) { alert('Add another city before removing this one.'); return; }
   store.cities = store.cities.filter(c => c.id !== activeDetailId);
   if (store.homeId === activeDetailId) store.homeId = store.cities[0].id;
+  if (store.planParticipants) {
+    store.planParticipants = store.planParticipants.filter(p => p !== activeDetailId);
+    if (store.planParticipants.length === 0) store.planParticipants = null;
+  }
   saveState();
   renderClock();
   detailSheet.close();
@@ -737,6 +760,13 @@ const planState = {
 };
 
 function openPlanSheet(opts) {
+  // Drop any stale ids from a previous city list; an empty result means
+  // "go back to using everyone."
+  if (store.planParticipants) {
+    const valid = store.planParticipants.filter(id => store.cities.some(c => c.id === id));
+    store.planParticipants = valid.length > 0 ? valid : null;
+  }
+
   rebuildAnchorOptions();
   if (opts && opts.fromUrl && opts.timeStr) {
     // URL provided a time — split it.
@@ -748,12 +778,60 @@ function openPlanSheet(opts) {
       if (a) planState.anchorId = a.id;
     }
   }
-  if (!planState.anchorId) planState.anchorId = store.homeId || store.cities[0]?.id;
+  // Anchor must be one of the participants; otherwise prefer home, else first.
+  const parts = planParticipantCities();
+  if (!parts.some(c => c.id === planState.anchorId)) {
+    planState.anchorId = parts.some(c => c.id === store.homeId)
+      ? store.homeId
+      : parts[0]?.id;
+  }
   if (!planState.dateStr || !planState.timeStr) seedDefaultTime();
 
   refreshPlanFields();
+  renderPlanChips();
   renderPlanResults();
   planSheet.showModal();
+}
+
+const planChipsEl = document.getElementById('plan-chips');
+
+function renderPlanChips() {
+  const selected = new Set((store.planParticipants ?? store.cities.map(c => c.id)));
+  planChipsEl.replaceChildren(...store.cities.map(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'plan-chip' + (selected.has(c.id) ? ' is-on' : '');
+    b.textContent = c.id === store.homeId ? `${c.name} 🏠` : c.name;
+    b.addEventListener('click', () => togglePlanParticipant(c.id));
+    return b;
+  }));
+}
+
+function togglePlanParticipant(cityId) {
+  let selected = store.planParticipants ?? store.cities.map(c => c.id);
+  if (selected.includes(cityId)) {
+    if (selected.length === 1) return;  // can't deselect the last one
+    selected = selected.filter(id => id !== cityId);
+  } else {
+    selected = [...selected, cityId];
+  }
+  // Back to "all selected" → null it out so future-added cities auto-include.
+  store.planParticipants =
+    selected.length === store.cities.length ? null : selected;
+  saveState();
+
+  // Anchor may no longer be a participant.
+  const parts = planParticipantCities();
+  if (!parts.some(c => c.id === planState.anchorId)) {
+    planState.anchorId = parts.some(c => c.id === store.homeId)
+      ? store.homeId
+      : parts[0]?.id;
+  }
+
+  rebuildAnchorOptions();
+  refreshPlanFields();
+  renderPlanChips();
+  renderPlanResults();
 }
 function seedDefaultTime() {
   // Default = next half-hour, in the anchor city's local time.
@@ -773,11 +851,10 @@ function seedDefaultTime() {
   planState.timeStr = `${String(H).padStart(2, '0')}:${String(M).padStart(2, '0')}`;
 }
 function rebuildAnchorOptions() {
-  planAnchorEl.replaceChildren(...store.cities.map(c => {
+  planAnchorEl.replaceChildren(...planParticipantCities().map(c => {
     const opt = document.createElement('option');
     opt.value = c.id;
-    opt.textContent = c.name;
-    if (c.id === store.homeId) opt.textContent = `${c.name}  (home)`;
+    opt.textContent = c.id === store.homeId ? `${c.name}  (home)` : c.name;
     return opt;
   }));
 }
@@ -837,7 +914,8 @@ function renderPlanResults() {
 
   // Order by offset AT the planned meeting instant — correct even if the
   // meeting date lands on the other side of a DST change from today.
-  const items = orderedCities(absMs).map(c => {
+  // Restricted to the cities the user has selected as participants.
+  const items = orderedCities(absMs, planParticipantCities()).map(c => {
     const local = formatTime(absMs, c.tz);
     const h = Math.floor(formatHourFraction(absMs, c.tz));
     const v = vibeFor(h);
@@ -899,7 +977,11 @@ function planShareText() {
     weekday: 'short', month: 'short', day: 'numeric', timeZone: anchor.tz,
   }).format(absMs);
   const anchorDay = dayKey(absMs, anchor.tz);
-  const ordered = [anchor, ...orderedCities(absMs).filter(c => c.id !== anchor.id)];
+  const participants = planParticipantCities();
+  const ordered = [
+    anchor,
+    ...orderedCities(absMs, participants).filter(c => c.id !== anchor.id),
+  ];
 
   const lines = [`Does ${datePhrase} work?`, ''];
   for (const c of ordered) {
@@ -908,7 +990,11 @@ function planShareText() {
     if (dayKey(absMs, c.tz) !== anchorDay) line += ` ${weekdayAbbr(absMs, c.tz)}`;
     lines.push(line);
   }
-  lines.push('', 'See it on Timebase:', shareUrl({ includeTime: true }));
+  lines.push(
+    '',
+    'See it on Timebase:',
+    shareUrl({ includeTime: true, cities: participants }),
+  );
   return lines.join('\n');
 }
 
