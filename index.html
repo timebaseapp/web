@@ -117,11 +117,23 @@
 <dialog id="add-sheet" aria-label="Add city">
   <form method="dialog" class="sheet-inner">
     <header>
-      <input id="city-search" type="search" placeholder="Search 1,500+ cities" autocomplete="off" autocorrect="off" />
+      <input id="city-search" class="city-search" type="search" placeholder="Search 1,500+ cities" autocomplete="off" autocorrect="off" />
       <button type="submit" value="cancel" aria-label="Close">Done</button>
     </header>
-    <h2 id="city-section-label">Suggested</h2>
-    <ul id="city-results"></ul>
+    <h2 id="city-section-label" class="city-section-label">Suggested</h2>
+    <ul id="city-results" class="city-results"></ul>
+  </form>
+</dialog>
+
+<!-- Add participant sheet (plan-only — full city database, doesn't touch the tracked list) -->
+<dialog id="plan-picker-sheet" aria-label="Add participant">
+  <form method="dialog" class="sheet-inner">
+    <header>
+      <input id="plan-picker-search" class="city-search" type="search" placeholder="Search 1,500+ cities" autocomplete="off" autocorrect="off" />
+      <button type="submit" value="cancel" aria-label="Close">Done</button>
+    </header>
+    <h2 id="plan-picker-label" class="city-section-label">Suggested</h2>
+    <ul id="plan-picker-results" class="city-results"></ul>
   </form>
 </dialog>
 

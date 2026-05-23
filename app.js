@@ -241,15 +241,14 @@ function saveState() {
 // with. Newly-added tracked cities do NOT auto-join the planner.
 function planParticipantIds() {
   if (store.planParticipants && store.planParticipants.length > 0) {
-    const valid = store.planParticipants.filter(id => store.cities.some(c => c.id === id));
+    const valid = store.planParticipants.filter(id => findCity(id) != null);
     if (valid.length > 0) return valid;
   }
   if (store.homeId && store.cities.some(c => c.id === store.homeId)) return [store.homeId];
   return store.cities[0] ? [store.cities[0].id] : [];
 }
 function planParticipantCities() {
-  const ids = planParticipantIds();
-  return store.cities.filter(c => ids.includes(c.id));
+  return planParticipantIds().map(findCity).filter(Boolean);
 }
 
 async function loadCityDB() {
@@ -319,7 +318,7 @@ function shareUrl({ includeTime = false, cities = store.cities } = {}) {
     u.searchParams.set('t', `${planState.dateStr}T${planState.timeStr}`);
     const anchor =
       cities.find(x => x.id === planState.anchorId) ||
-      store.cities.find(x => x.id === planState.anchorId);
+      findCity(planState.anchorId);
     if (anchor) u.searchParams.set('anchor', anchor.name);
   }
   // Use unescaped commas for readability — spec allows them in query strings.
@@ -327,6 +326,15 @@ function shareUrl({ includeTime = false, cities = store.cities } = {}) {
 }
 
 function cityId(c) { return `${c.name}|${c.tz}`; }
+
+// Resolve a city id from anywhere — the user's tracked list OR the full
+// bundled database. Plan participants can be ANY city, not just tracked.
+function findCity(id) {
+  const tracked = store.cities.find(c => c.id === id);
+  if (tracked) return tracked;
+  const inDb = CITY_DB.find(c => cityId(c) === id);
+  return inDb ? { ...inDb, id } : null;
+}
 
 // All cities (including home) sorted by UTC offset ascending — colors flow
 // as a continuous gradient. Home is marked with a 🏠 suffix on its row, so
@@ -635,10 +643,6 @@ function populateCityList(query) {
         }
         store.cities = store.cities.filter(x => x.id !== id);
         if (store.homeId === id) store.homeId = store.cities[0].id;
-        if (store.planParticipants) {
-          store.planParticipants = store.planParticipants.filter(p => p !== id);
-          if (store.planParticipants.length === 0) store.planParticipants = null;
-        }
         saveState();
         renderClock();
         populateCityList(citySearch.value);  // refresh list state
@@ -740,10 +744,6 @@ document.getElementById('remove-btn').addEventListener('click', () => {
   if (store.cities.length <= 1) { alert('Add another city before removing this one.'); return; }
   store.cities = store.cities.filter(c => c.id !== activeDetailId);
   if (store.homeId === activeDetailId) store.homeId = store.cities[0].id;
-  if (store.planParticipants) {
-    store.planParticipants = store.planParticipants.filter(p => p !== activeDetailId);
-    if (store.planParticipants.length === 0) store.planParticipants = null;
-  }
   saveState();
   renderClock();
   detailSheet.close();
@@ -769,10 +769,10 @@ const planState = {
 };
 
 function openPlanSheet(opts) {
-  // Drop any stale ids from a previous city list; an empty result means
-  // "go back to using everyone."
+  // Drop any participants whose city no longer exists in the bundled
+  // database (extremely rare — would require cities.json to change).
   if (store.planParticipants) {
-    const valid = store.planParticipants.filter(id => store.cities.some(c => c.id === id));
+    const valid = store.planParticipants.filter(id => findCity(id) != null);
     store.planParticipants = valid.length > 0 ? valid : null;
   }
 
@@ -805,36 +805,55 @@ function openPlanSheet(opts) {
 const planChipsEl = document.getElementById('plan-chips');
 
 function renderPlanChips() {
-  const selected = new Set(planParticipantIds());
-  planChipsEl.replaceChildren(...store.cities.map(c => {
+  const ids = planParticipantIds();
+  const canRemove = ids.length > 1;
+  const chips = ids.map(id => {
+    const c = findCity(id);
+    if (!c) return null;
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'plan-chip' + (selected.has(c.id) ? ' is-on' : '');
-    b.textContent = c.id === store.homeId ? `${c.name} 🏠` : c.name;
-    b.addEventListener('click', () => togglePlanParticipant(c.id));
+    b.className = 'plan-chip';
+    const homeMark = c.id === store.homeId ? ' 🏠' : '';
+    b.innerHTML = `<span>${c.name}${homeMark}</span><span class="plan-chip-x" aria-hidden="true">×</span>`;
+    b.setAttribute('aria-label', `Remove ${c.name}`);
+    if (canRemove) {
+      b.addEventListener('click', () => removePlanParticipant(c.id));
+    } else {
+      b.disabled = true;
+      b.title = 'At least one participant';
+    }
     return b;
-  }));
+  }).filter(Boolean);
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'plan-chip plan-chip-add';
+  addBtn.textContent = '+ Add city';
+  addBtn.addEventListener('click', openPlanPickerSheet);
+
+  planChipsEl.replaceChildren(...chips, addBtn);
 }
 
-function togglePlanParticipant(cityId) {
-  let selected = planParticipantIds();
-  if (selected.includes(cityId)) {
-    if (selected.length === 1) return;  // can't deselect the last one
-    selected = selected.filter(id => id !== cityId);
-  } else {
-    selected = [...selected, cityId];
-  }
-  store.planParticipants = selected;
+function addPlanParticipant(id) {
+  const ids = planParticipantIds();
+  if (ids.includes(id)) return;
+  store.planParticipants = [...ids, id];
   saveState();
+  rebuildAnchorOptions();
+  renderPlanChips();
+  renderPlanResults();
+}
 
-  // Anchor may no longer be a participant.
-  const parts = planParticipantCities();
-  if (!parts.some(c => c.id === planState.anchorId)) {
-    planState.anchorId = parts.some(c => c.id === store.homeId)
-      ? store.homeId
-      : parts[0]?.id;
+function removePlanParticipant(id) {
+  const ids = planParticipantIds();
+  if (!ids.includes(id) || ids.length <= 1) return;
+  const updated = ids.filter(i => i !== id);
+  store.planParticipants = updated;
+  saveState();
+  // If we just removed the anchor, fall back to home (if present) or first.
+  if (planState.anchorId === id) {
+    planState.anchorId = updated.includes(store.homeId) ? store.homeId : updated[0];
   }
-
   rebuildAnchorOptions();
   refreshPlanFields();
   renderPlanChips();
@@ -842,7 +861,7 @@ function togglePlanParticipant(cityId) {
 }
 function seedDefaultTime() {
   // Default = next half-hour, in the anchor city's local time.
-  const anchor = store.cities.find(x => x.id === planState.anchorId);
+  const anchor = findCity(planState.anchorId);
   if (!anchor) return;
   const ms = Date.now();
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -905,7 +924,7 @@ function vibeFor(hourLocal) {
 }
 
 function renderPlanResults() {
-  const anchor = store.cities.find(x => x.id === planState.anchorId);
+  const anchor = findCity(planState.anchorId);
   if (!anchor) { planResultsEl.replaceChildren(); return; }
   const absMs = localToAbsoluteMs(planState.dateStr, planState.timeStr, anchor.tz);
   if (absMs == null) { planResultsEl.replaceChildren(); return; }
@@ -975,7 +994,7 @@ function weekdayAbbr(absMs, tz) {
 // The text dropped on the clipboard / share sheet: the proposed time in
 // every city (anchor first), plus a Timebase link that reopens this plan.
 function planShareText() {
-  const anchor = store.cities.find(x => x.id === planState.anchorId);
+  const anchor = findCity(planState.anchorId);
   if (!anchor) return '';
   const absMs = localToAbsoluteMs(planState.dateStr, planState.timeStr, anchor.tz);
   if (absMs == null) return '';
@@ -1041,6 +1060,52 @@ planPill.addEventListener('click', () => openPlanSheet());
 planAnchorEl.addEventListener('change', () => { planState.anchorId = planAnchorEl.value; renderPlanResults(); });
 planNowBtn.addEventListener('click', () => { seedDefaultTime(); refreshPlanFields(); renderPlanResults(); });
 planCopyBtn.addEventListener('click', () => copyPlanDetails());
+
+/* ── Participant picker — searches the FULL city database (~1,500 cities),
+      not just the user's tracked list. Tapping a city adds it as a plan
+      participant; the sheet stays open so the user can add several before
+      tapping Done. ── */
+const planPickerSheet   = document.getElementById('plan-picker-sheet');
+const planPickerSearch  = document.getElementById('plan-picker-search');
+const planPickerLabel   = document.getElementById('plan-picker-label');
+const planPickerResults = document.getElementById('plan-picker-results');
+
+function openPlanPickerSheet() {
+  planPickerSearch.value = '';
+  populatePlanPickerList('');
+  planPickerSheet.showModal();
+  requestAnimationFrame(() => planPickerSearch.focus());
+}
+function populatePlanPickerList(query) {
+  const q = query.trim().toLowerCase();
+  const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const selected = new Set(planParticipantIds());
+  let list;
+  if (!q) {
+    list = CITY_DB.filter(c => c.popular).slice(0, 12);
+    planPickerLabel.textContent = 'Suggested';
+  } else {
+    list = CITY_DB
+      .filter(c => norm(c.name).includes(q) || norm(c.country).includes(q))
+      .slice(0, 50);
+    planPickerLabel.textContent = list.length ? 'Results' : 'No matches';
+  }
+  planPickerResults.replaceChildren(...list.map(c => {
+    const id = cityId(c);
+    const inPlan = selected.has(id);
+    const li = document.createElement('li');
+    if (inPlan) li.classList.add('is-added');
+    li.innerHTML = `<span>${c.name}</span><span class="country">${c.country}${inPlan ? ' · added' : ''}</span>`;
+    if (!inPlan) {
+      li.addEventListener('click', () => {
+        addPlanParticipant(id);
+        populatePlanPickerList(planPickerSearch.value);
+      });
+    }
+    return li;
+  }));
+}
+planPickerSearch.addEventListener('input', () => populatePlanPickerList(planPickerSearch.value));
 
 /* ── On-brand date / time pickers — top-layer popovers anchored to the
       DATE / TIME fields, so they're never clipped by the sheet and never
@@ -1305,6 +1370,10 @@ async function init() {
   if (urlState) {
     store.cities = urlState.cities;
     store.homeId = urlState.homeId;
+    if (urlState.planTime) {
+      // For shared plan links, the planned participants ARE the shared cities.
+      store.planParticipants = urlState.cities.map(c => c.id);
+    }
   } else {
     ensureDefaults();
   }

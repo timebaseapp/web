@@ -353,7 +353,7 @@ dialog::backdrop {
   padding: 6px 8px;
 }
 
-#city-search {
+.city-search {
   flex: 1;
   background: rgba(128,128,128,0.12);
   border: none;
@@ -364,9 +364,9 @@ dialog::backdrop {
   font-family: inherit;
 }
 
-#city-search:focus { outline: 1.5px solid var(--accent); }
+.city-search:focus { outline: 1.5px solid var(--accent); }
 
-#city-section-label {
+.city-section-label {
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -375,7 +375,7 @@ dialog::backdrop {
   margin: 0;
 }
 
-#city-results {
+.city-results {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -383,7 +383,7 @@ dialog::backdrop {
   flex: 1;
 }
 
-#city-results li {
+.city-results li {
   padding: 12px 4px;
   display: flex;
   justify-content: space-between;
@@ -393,10 +393,11 @@ dialog::backdrop {
   font-size: 17px;
 }
 
-#city-results li:last-child { border-bottom: none; }
-#city-results li:hover { background: rgba(128,128,128,0.08); }
+.city-results li:last-child { border-bottom: none; }
+.city-results li:hover { background: rgba(128,128,128,0.08); }
+.city-results li.is-added { opacity: 0.5; cursor: default; }
 
-#city-results li .country {
+.city-results li .country {
   font-size: 13px;
   color: var(--fg-muted);
   font-weight: 400;
@@ -571,7 +572,9 @@ dialog::backdrop {
   margin-top: 6px;
 }
 
-/* Participant chips — tap to toggle. Filled = included in the plan. */
+/* Participant chips — each chip is a selected participant; tap to remove
+   (the × indicates removability). The trailing chip is the "+ Add city"
+   trigger that opens the full-database picker. */
 .plan-chips {
   display: flex;
   flex-wrap: wrap;
@@ -579,28 +582,40 @@ dialog::backdrop {
   margin: 4px 0 0;
 }
 .plan-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font: inherit;
   font-size: 13px;
   letter-spacing: 0;
-  padding: 6px 12px;
+  padding: 6px 10px 6px 12px;
   border-radius: 999px;
-  background: transparent;
-  color: var(--fg-muted);
-  border: 0.5px solid var(--rule);
+  background: var(--accent);
+  color: var(--bg);
+  border: 0.5px solid var(--accent);
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  transition: opacity 0.12s ease;
   white-space: nowrap;
 }
-.plan-chip:hover {
+.plan-chip:hover { opacity: 0.85; }
+.plan-chip:disabled { opacity: 0.5; cursor: default; }
+.plan-chip-x {
+  font-size: 15px;
+  line-height: 1;
+  display: inline-block;
+}
+.plan-chip-add {
+  background: transparent;
+  color: var(--fg-muted);
+  border: 0.5px dashed var(--rule);
+  padding: 6px 12px;
+}
+.plan-chip-add:hover {
   background: rgba(128, 128, 128, 0.10);
   color: var(--fg);
-}
-.plan-chip.is-on {
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
+  opacity: 1;
 }
 .sheet-inner.plan #plan-results {
   list-style: none;
