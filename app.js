@@ -236,11 +236,20 @@ function saveState() {
   );
 }
 
-// Resolved cities for the planner: null means "use all tracked".
+// Resolved cities for the planner. Default (no saved selection) is just the
+// home city — the user explicitly chips-in whoever else they want to plan
+// with. Newly-added tracked cities do NOT auto-join the planner.
+function planParticipantIds() {
+  if (store.planParticipants && store.planParticipants.length > 0) {
+    const valid = store.planParticipants.filter(id => store.cities.some(c => c.id === id));
+    if (valid.length > 0) return valid;
+  }
+  if (store.homeId && store.cities.some(c => c.id === store.homeId)) return [store.homeId];
+  return store.cities[0] ? [store.cities[0].id] : [];
+}
 function planParticipantCities() {
-  if (!store.planParticipants) return store.cities;
-  const filtered = store.cities.filter(c => store.planParticipants.includes(c.id));
-  return filtered.length > 0 ? filtered : store.cities;
+  const ids = planParticipantIds();
+  return store.cities.filter(c => ids.includes(c.id));
 }
 
 async function loadCityDB() {
@@ -796,7 +805,7 @@ function openPlanSheet(opts) {
 const planChipsEl = document.getElementById('plan-chips');
 
 function renderPlanChips() {
-  const selected = new Set((store.planParticipants ?? store.cities.map(c => c.id)));
+  const selected = new Set(planParticipantIds());
   planChipsEl.replaceChildren(...store.cities.map(c => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -808,16 +817,14 @@ function renderPlanChips() {
 }
 
 function togglePlanParticipant(cityId) {
-  let selected = store.planParticipants ?? store.cities.map(c => c.id);
+  let selected = planParticipantIds();
   if (selected.includes(cityId)) {
     if (selected.length === 1) return;  // can't deselect the last one
     selected = selected.filter(id => id !== cityId);
   } else {
     selected = [...selected, cityId];
   }
-  // Back to "all selected" → null it out so future-added cities auto-include.
-  store.planParticipants =
-    selected.length === store.cities.length ? null : selected;
+  store.planParticipants = selected;
   saveState();
 
   // Anchor may no longer be a participant.

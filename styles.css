@@ -304,13 +304,15 @@ dialog::backdrop {
   background: var(--sheet-bg);
   border-radius: 16px;
   padding: 24px;
-  max-height: 80vh;
   display: flex;
   flex-direction: column;
   gap: 16px;
   border: 0.5px solid var(--rule);
   position: relative;
   isolation: isolate;
+  /* `hidden` is here to clip the grain ::before to the rounded corners — not
+     a height cap. The sheet itself scales with its content; the outer
+     <dialog> handles the viewport ceiling via its own max-height. */
   overflow: hidden;
 }
 
