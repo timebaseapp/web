@@ -282,27 +282,21 @@
       </label>
     </div>
 
-    <div class="app-store-row">
-      <!-- QR code for scanning from a separate phone. Hidden on small
-           viewports where the user is presumably already on a phone — the
-           Smart App Banner and the badge below give them direct install. -->
-      <div class="app-store-qr" aria-hidden="true">
-        <img src="/app-store-qr.svg" alt="" width="84" height="84" />
-        <span class="app-store-qr-label">Scan to install</span>
-      </div>
-      <a class="app-store-badge"
-         href="https://apps.apple.com/app/apple-store/id6770247920?pt=128687264&amp;ct=web-app&amp;mt=8"
-         target="_blank"
-         rel="noopener"
-         aria-label="Download Timebase on the App Store">
-        <picture>
-          <source media="(prefers-color-scheme: dark)"
-                  srcset="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/white/en-us" />
-          <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us"
-               alt="Download Timebase on the App Store" />
-        </picture>
-      </a>
-    </div>
+    <a class="app-store-badge"
+       href="https://apps.apple.com/app/apple-store/id6770247920?pt=128687264&amp;ct=web-app&amp;mt=8"
+       target="_blank"
+       rel="noopener"
+       aria-label="Download Timebase on the App Store">
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/white/en-us" />
+        <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us"
+             alt="Download Timebase on the App Store" />
+      </picture>
+    </a>
+    <!-- "Scan to install" is hidden on small viewports — phones can just
+         tap the badge above. Opens the QR sheet on click. -->
+    <button type="button" id="qr-trigger" class="qr-trigger">Scan to install</button>
 
     <div class="about-divider"></div>
 
@@ -326,6 +320,15 @@
       </div>
     </div>
 
+  </form>
+</dialog>
+
+<!-- QR sheet — small dialog with the App Store QR, opened from the About card. -->
+<dialog id="qr-sheet" aria-label="Scan to install Timebase">
+  <form method="dialog" class="qr-sheet">
+    <img src="/app-store-qr.svg" alt="QR code linking to Timebase on the App Store" />
+    <p class="qr-sheet-caption">Scan with your phone's camera to install Timebase.</p>
+    <button type="submit" value="cancel" class="qr-sheet-close">Done</button>
   </form>
 </dialog>
 

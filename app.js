@@ -579,6 +579,12 @@ const aboutSettingAppearance = document.getElementById('about-setting-appearance
 addPill.addEventListener('click', () => openAddSheet());
 aboutPill.addEventListener('click', () => openAboutCard());
 
+const qrTrigger = document.getElementById('qr-trigger');
+const qrSheet = document.getElementById('qr-sheet');
+if (qrTrigger && qrSheet) {
+  qrTrigger.addEventListener('click', () => qrSheet.showModal());
+}
+
 function openAboutCard() {
   aboutSetting24h.value = store.settings.h24;
   aboutSettingAppearance.value = store.settings.appearance;
