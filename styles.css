@@ -1030,6 +1030,34 @@ ul.settings li.about a { color: var(--fg-muted); }
 }
 .welcome-ghost:hover { color: var(--fg); }
 
+/* Secondary App Store badge on welcome step 3 — sits quietly below
+   "Got it" as an alternate path, not competing with the primary action. */
+.welcome-app-store {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--rule);
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.15s ease;
+}
+.welcome-app-store:hover { opacity: 0.85; }
+.welcome-app-store-label {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.welcome-app-store img {
+  display: block;
+  height: 36px;
+  width: auto;
+}
+
 .welcome-dots {
   display: flex;
   gap: 7px;
