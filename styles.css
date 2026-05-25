@@ -1158,6 +1158,23 @@ ul.settings li.about a { color: var(--fg-muted); }
   letter-spacing: 0.04em;
 }
 
+/* Apple App Store badge. Per Apple guidelines: do not modify the artwork,
+   keep at least 10% of badge height as clear space, minimum 40px height.
+   The parent (.about-card) text-aligns center, so inline-block centers. */
+.app-store-badge {
+  display: inline-block;
+  margin: 6px 0 18px;
+  border-radius: 8px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.app-store-badge:hover { opacity: 0.85; }
+.app-store-badge:active { transform: scale(0.98); }
+.app-store-badge img {
+  display: block;
+  height: 44px;
+  width: auto;
+}
+
 .about-divider {
   height: 1px;
   background: var(--rule);

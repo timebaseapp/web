@@ -26,10 +26,10 @@
 <meta name="twitter:creator" content="@amrith" />
 <meta name="theme-color" content="#F8F6F2" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)" />
-<!-- Native iOS smart banner so people on iPhone see "open in app" at the top
-     when they land on a shared link. Replace 6770247920 once App Store ID is
-     finalised post-review. -->
-<meta name="apple-itunes-app" content="app-id=6770247920" />
+<!-- iOS Smart App Banner — shown by Safari on iPhone, offers Open/Download. -->
+<!-- affiliate-data carries our campaign attribution so taps from this banner -->
+<!-- show up distinctly from button taps in App Analytics. -->
+<meta name="apple-itunes-app" content="app-id=6770247920, affiliate-data=pt=128687264&ct=web-smart-banner" />
 <link rel="icon" href="/favicon.ico" sizes="32x32" />
 <link rel="icon" href="/icon.svg" type="image/svg+xml" />
 <link rel="manifest" href="/manifest.webmanifest" />
@@ -76,6 +76,21 @@
         "Shareable links for any set of cities and a chosen time",
         "Works in any browser — free, no account, no tracking"
       ],
+      "author": { "@id": "https://timebase.me/#amrith" }
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": "https://timebase.me/#ios-app",
+      "name": "Timebase",
+      "operatingSystem": "iOS",
+      "applicationCategory": "UtilitiesApplication",
+      "downloadUrl": "https://apps.apple.com/app/id6770247920",
+      "installUrl": "https://apps.apple.com/app/id6770247920",
+      "softwareVersion": "1.0",
+      "inLanguage": "en",
+      "image": "https://timebase.me/apple-touch-icon.png",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
       "author": { "@id": "https://timebase.me/#amrith" }
     },
     {
@@ -266,6 +281,19 @@
         </select>
       </label>
     </div>
+
+    <a class="app-store-badge"
+       href="https://apps.apple.com/app/apple-store/id6770247920?pt=128687264&amp;ct=web-app&amp;mt=8"
+       target="_blank"
+       rel="noopener"
+       aria-label="Download Timebase on the App Store">
+      <picture>
+        <source media="(prefers-color-scheme: dark)"
+                srcset="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/white/en-us" />
+        <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us"
+             alt="Download Timebase on the App Store" />
+      </picture>
+    </a>
 
     <div class="about-divider"></div>
 
