@@ -1186,12 +1186,40 @@ ul.settings li.about a { color: var(--fg-muted); }
   letter-spacing: 0.04em;
 }
 
-/* Apple App Store badge. Per Apple guidelines: do not modify the artwork,
-   keep at least 10% of badge height as clear space, minimum 40px height.
-   The parent (.about-card) text-aligns center, so inline-block centers. */
+/* App Store row — QR (desktop only) + official badge. Centered inside
+   the About card. Per Apple guidelines: don't modify the badge artwork,
+   keep at least 10% of badge height as clear space, minimum 40px tall. */
+.app-store-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 6px 0 18px;
+}
+.app-store-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.app-store-qr img {
+  display: block;
+  width: 84px;
+  height: 84px;
+  border: 0.5px solid var(--rule);
+  border-radius: 6px;
+  padding: 4px;
+  background: #fff;
+}
+.app-store-qr-label {
+  font-family: "Departure Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
 .app-store-badge {
   display: inline-block;
-  margin: 6px 0 18px;
   border-radius: 8px;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
@@ -1201,6 +1229,11 @@ ul.settings li.about a { color: var(--fg-muted); }
   display: block;
   height: 44px;
   width: auto;
+}
+/* Hide the QR on mobile/narrow viewports — they already have the Smart
+   App Banner and the badge below for direct install. */
+@media (max-width: 600px) {
+  .app-store-qr { display: none; }
 }
 
 .about-divider {
