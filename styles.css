@@ -1188,10 +1188,13 @@ ul.settings li.about a { color: var(--fg-muted); }
 
 /* Apple App Store badge — centered, primary CTA. Per Apple guidelines:
    don't modify the artwork, keep at least 10% of badge height as clear
-   space, minimum 40px tall. */
+   space, minimum 40px tall.
+   display:block + width:fit-content + auto margin centers it on its own
+   line regardless of parent text-align. */
 .app-store-badge {
-  display: inline-block;
-  margin: 6px 0 8px;
+  display: block;
+  width: fit-content;
+  margin: 6px auto 8px;
   border-radius: 8px;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
@@ -1203,10 +1206,12 @@ ul.settings li.about a { color: var(--fg-muted); }
   width: auto;
 }
 
-/* Quiet "Scan to install" trigger under the badge. Hidden on small
+/* Quiet "Scan to install" trigger under the badge. Block-level so it
+   sits on its own line and centers via auto margin. Hidden on small
    viewports — phones can just tap the badge above. */
 .qr-trigger {
-  display: inline-block;
+  display: block;
+  width: fit-content;
   margin: 0 auto 18px;
   background: transparent;
   border: none;
